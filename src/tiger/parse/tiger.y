@@ -1,4 +1,23 @@
+/**
+ * @file tiger.y
+ * @brief Parser specification for the Tiger programming language - Lab 3
+ *
+ * This file contains a Bison (Yacc-compatible) parser specification that defines
+ * the grammar for the Tiger programming language. It parses token streams from
+ * the lexical analyzer and constructs abstract syntax trees (ASTs).
+ *
+ * Key features implemented:
+ * - Complete Tiger grammar with operator precedence and associativity
+ * - AST node construction for all language constructs
+ * - Error recovery and reporting
+ * - Integration with symbol table and error message systems
+ * - Support for mutually recursive type and function declarations
+ */
+
 %{
+/**
+ * @brief Includes and declarations for the parser
+ */
 #include <string>
 #include <iostream>
 #include <memory>
@@ -6,13 +25,37 @@
 #include "tiger/errormsg/errormsg.h"
 #include "tiger/symbol/symbol.h"
 
+/**
+ * @brief External lexer function declaration
+ */
 extern int yylex();
+
+/**
+ * @brief Error reporting function called by the parser on syntax errors
+ * @param s Error message string
+ */
 void yyerror(const char *s);
+
+/**
+ * @brief Initialize the lexical analyzer with error handler
+ * @param errormsg Error message handler for position tracking
+ */
 void InitLexer(err::ErrorMsg *errormsg);
 
+/**
+ * @brief Global AST tree being constructed by the parser
+ */
 static std::unique_ptr<absyn::AbsynTree> absyn_tree_;
+
+/**
+ * @brief Global error message handler for position tracking
+ */
 static err::ErrorMsg *errormsg_;
 
+/**
+ * @brief Get current token position for AST node construction
+ * @return Current token position from error handler
+ */
 int GetTokPos() {
     return errormsg_->GetTokPos();
 }
@@ -24,30 +67,46 @@ int GetTokPos() {
 #include "tiger/symbol/symbol.h"
 }
 
+/**
+ * @brief Semantic value union for parser attributes
+ *
+ * Each symbol in the grammar can have associated semantic values
+ * of different types depending on what it represents in the AST.
+ */
 %union {
-  int ival;
-  std::string* sval;
-  sym::Symbol *sym;
-  absyn::Exp *exp;
-  absyn::ExpList *explist;
-  absyn::Var *var;
-  absyn::DecList *declist;
-  absyn::Dec *dec;
-  absyn::EFieldList *efieldlist;
-  absyn::EField *efield;
-  absyn::NameAndTyList *tydeclist;
-  absyn::NameAndTy *tydec;
-  absyn::FieldList *fieldlist;
-  absyn::Field *field;
-  absyn::FunDecList *fundeclist;
-  absyn::FunDec *fundec;
-  absyn::Ty *ty;
+  int ival;                          /**< Integer literal values */
+  std::string* sval;                 /**< String literal values */
+  sym::Symbol *sym;                  /**< Symbol table entries */
+
+  absyn::Exp *exp;                   /**< Expression nodes */
+  absyn::ExpList *explist;           /**< Expression list nodes */
+  absyn::Var *var;                   /**< Variable reference nodes */
+
+  absyn::DecList *declist;           /**< Declaration list nodes */
+  absyn::Dec *dec;                   /**< Declaration nodes */
+  absyn::EFieldList *efieldlist;     /**< Expression field list nodes */
+  absyn::EField *efield;             /**< Expression field nodes */
+
+  absyn::NameAndTyList *tydeclist;    /**< Type declaration list nodes */
+  absyn::NameAndTy *tydec;           /**< Type declaration nodes */
+  absyn::FieldList *fieldlist;       /**< Field list nodes */
+  absyn::Field *field;               /**< Field nodes */
+
+  absyn::FunDecList *fundeclist;     /**< Function declaration list nodes */
+  absyn::FunDec *fundec;             /**< Function declaration nodes */
+  absyn::Ty *ty;                     /**< Type nodes */
 }
 
-%token <sym> ID
-%token <sval> STRING
-%token <ival> INT
+/**
+ * @brief Token declarations with their semantic value types
+ */
+%token <sym> ID                        /**< Identifier tokens */
+%token <sval> STRING                    /**< String literal tokens */
+%token <ival> INT                       /**< Integer literal tokens */
 
+/**
+ * @brief Additional token declarations for keywords and operators
+ */
 %token
   COMMA COLON SEMICOLON LPAREN RPAREN LBRACK RBRACK
   LBRACE RBRACE DOT
@@ -55,36 +114,81 @@ int GetTokPos() {
   BREAK NIL
   FUNCTION VAR TYPE
 
-/* token priority */
-%nonassoc ASSIGN
-%left OR
-%left AND
-%nonassoc EQ NEQ LT LE GT GE
-%left PLUS MINUS
-%left TIMES DIVIDE
+/**
+ * @brief Operator precedence and associativity declarations
+ *
+ * Defines the precedence order (higher precedence binds tighter) and
+ * associativity for binary operators in expressions.
+ */
+%nonassoc ASSIGN                    /**< Assignment (non-associative) */
+%left OR                           /**< Logical OR (left-associative) */
+%left AND                          /**< Logical AND (left-associative) */
+%nonassoc EQ NEQ LT LE GT GE       /**< Comparison operators (non-associative) */
+%left PLUS MINUS                   /**< Addition and subtraction (left-associative) */
+%left TIMES DIVIDE                 /**< Multiplication and division (left-associative) */
 
-%type <exp> exp expop expseq
-%type <explist> actuals nonemptyactuals sequencing_exps
-%type <var> lvalue one oneormore
-%type <declist> decs decs_nonempty
-%type <dec> decs_nonempty_s vardec
-%type <efieldlist> rec rec_nonempty
-%type <efield> rec_one
-%type <tydeclist> tydec
-%type <tydec> tydec_one
-%type <fieldlist> tyfields tyfields_nonempty
-%type <field> tyfield
-%type <ty> ty
-%type <fundeclist> fundec
-%type <fundec> fundec_one
+/**
+ * @brief Non-terminal symbol type declarations
+ *
+ * Specifies the semantic value types for each non-terminal symbol
+ * in the grammar, enabling type-safe attribute passing.
+ */
+%type <exp> exp expop expseq                    /**< Expression types */
+%type <explist> actuals nonemptyactuals sequencing_exps  /**< Expression list types */
+%type <var> lvalue one oneormore               /**< Variable reference types */
+%type <declist> decs decs_nonempty             /**< Declaration list types */
+%type <dec> decs_nonempty_s vardec             /**< Declaration types */
+%type <efieldlist> rec rec_nonempty            /**< Record field list types */
+%type <efield> rec_one                         /**< Record field types */
+%type <tydeclist> tydec                        /**< Type declaration list types */
+%type <tydec> tydec_one                        /**< Type declaration types */
+%type <fieldlist> tyfields tyfields_nonempty   /**< Field list types */
+%type <field> tyfield                          /**< Field types */
+%type <ty> ty                                  /**< Type types */
+%type <fundeclist> fundec                      /**< Function declaration list types */
+%type <fundec> fundec_one                      /**< Function declaration types */
 
+/**
+ * @brief Start symbol declaration
+ *
+ * Specifies that 'program' is the start symbol of the grammar.
+ */
 %start program
 
 %%
+
+/**
+ * @brief Grammar rules for the Tiger language
+ *
+ * The following sections define the complete grammar for Tiger:
+ * - Program structure
+ * - Expressions and operators
+ * - Variable references (l-values)
+ * - Declarations (types, variables, functions)
+ * - Type definitions
+ *
+ * Each rule constructs appropriate AST nodes with position information
+ * for error reporting and semantic analysis.
+ */
 program:  exp  { absyn_tree_ = std::make_unique<absyn::AbsynTree>($1); }
   ;
 
-// ------Expressions and List------
+/**
+ * @brief Expression parsing rules
+ *
+ * These rules handle all forms of expressions in Tiger:
+ * - Literals (integers, strings, nil)
+ * - Variable references
+ * - Function calls
+ * - Arithmetic and logical operations
+ * - Record creation
+ * - Sequence expressions
+ * - Assignments
+ * - Conditional expressions
+ * - Loops (while, for)
+ * - Let expressions with declarations
+ * - Array creation
+ */
 
 exp:
    INT  { $$ = new absyn::IntExp(GetTokPos(), $1); }
@@ -152,7 +256,14 @@ nonemptyactuals:
 ;
 
 
-// ------Variables------
+/**
+ * @brief Variable reference (l-value) parsing rules
+ *
+ * These rules handle variable references and field/array access:
+ * - Simple variable names
+ * - Field access (record.field)
+ * - Array element access (array[index])
+ */
 
 lvalue:
    ID  {
@@ -176,7 +287,15 @@ one:
 ;
 
 
-// ------Type Declarations and List------
+/**
+ * @brief Type declaration parsing rules
+ *
+ * These rules handle type definitions in Tiger:
+ * - Type aliases (type name = type)
+ * - Record types (type name = { field1: type1, field2: type2 })
+ * - Array types (type name = array of element_type)
+ * - Field definitions for records
+ */
 
 // 1 or more type declarations
 tydec:
@@ -209,7 +328,15 @@ tyfield:
 ;
 
 
-// ------Function Declarations and List------
+/**
+ * @brief Function declaration parsing rules
+ *
+ * These rules handle function definitions in Tiger:
+ * - Function name and parameter list
+ * - Optional return type specification
+ * - Function body expression
+ * - Support for procedures (functions with no return value)
+ */
 
 fundec:
    fundec_one fundec  { $$ = $2->Prepend($1); }
@@ -222,7 +349,14 @@ fundec_one:
 ;
 
 
-// ------Record Fields and List------
+/**
+ * @brief Record field parsing rules
+ *
+ * These rules handle record creation and field initialization:
+ * - Record field lists (name = value pairs)
+ * - Support for empty records
+ * - Field name and value expression pairs
+ */
 
 rec:
    rec_nonempty  { $$ = $1; }
@@ -239,7 +373,14 @@ rec_one:
 ;
 
 
-// ------Variable Declarations------
+/**
+ * @brief Variable declaration parsing rules
+ *
+ * These rules handle variable declarations in Tiger:
+ * - Variable name and optional type annotation
+ * - Variable initialization expression
+ * - Type inference for untyped variables
+ */
 
 vardec:
    VAR ID ASSIGN exp  { $$ = new absyn::VarDec(GetTokPos(), $2, NULL, $4); }
@@ -247,7 +388,14 @@ vardec:
 ;
 
 
-// ------All Declarations------
+/**
+ * @brief Declaration list parsing rules
+ *
+ * These rules handle sequences of declarations in Tiger:
+ * - Empty declaration lists
+ * - Non-empty declaration lists (type, variable, function declarations)
+ * - Proper ordering and sequencing of different declaration types
+ */
 
 decs:
    decs_nonempty  { $$ = $1; }
@@ -267,10 +415,27 @@ decs_nonempty_s:
 
 %%
 
+/**
+ * @brief Error reporting function called by the parser on syntax errors
+ * @param s Error message string
+ */
 void yyerror(const char *s) {
     errormsg_->Error(GetTokPos(), "%s", s);
 }
 
+/**
+ * @brief Main parsing function for Tiger source files
+ *
+ * This function orchestrates the complete parsing process:
+ * 1. Initializes error handling and lexer state
+ * 2. Opens the source file for lexing
+ * 3. Invokes the parser (yyparse)
+ * 4. Returns the constructed AST if parsing succeeds
+ * 5. Handles file I/O and error conditions
+ *
+ * @param fname Path to the Tiger source file to parse
+ * @return Unique pointer to the parsed AST, or nullptr if parsing failed
+ */
 std::unique_ptr<absyn::AbsynTree> Parse(const std::string &fname) {
     errormsg_ = new err::ErrorMsg(fname);
     InitLexer(errormsg_);

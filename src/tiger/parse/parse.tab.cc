@@ -67,8 +67,11 @@
 
 
 /* First part of user prologue.  */
-#line 1 "tiger.y"
+#line 17 "tiger.y"
 
+/**
+ * @brief Includes and declarations for the parser
+ */
 #include <string>
 #include <iostream>
 #include <memory>
@@ -76,19 +79,43 @@
 #include "tiger/errormsg/errormsg.h"
 #include "tiger/symbol/symbol.h"
 
+/**
+ * @brief External lexer function declaration
+ */
 extern int yylex();
+
+/**
+ * @brief Error reporting function called by the parser on syntax errors
+ * @param s Error message string
+ */
 void yyerror(const char *s);
+
+/**
+ * @brief Initialize the lexical analyzer with error handler
+ * @param errormsg Error message handler for position tracking
+ */
 void InitLexer(err::ErrorMsg *errormsg);
 
+/**
+ * @brief Global AST tree being constructed by the parser
+ */
 static std::unique_ptr<absyn::AbsynTree> absyn_tree_;
+
+/**
+ * @brief Global error message handler for position tracking
+ */
 static err::ErrorMsg *errormsg_;
 
+/**
+ * @brief Get current token position for AST node construction
+ * @return Current token position from error handler
+ */
 int GetTokPos() {
     return errormsg_->GetTokPos();
 }
 
 
-#line 92 "parse.tab.cc"
+#line 119 "parse.tab.cc"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -578,14 +605,14 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    84,    84,    90,    91,    92,    93,    94,    96,    97,
-      98,    99,   100,   101,   102,   103,   104,   105,   106,   107,
-     108,   112,   113,   114,   115,   116,   117,   118,   119,   120,
-     121,   122,   123,   124,   131,   132,   133,   139,   140,   145,
-     146,   150,   151,   158,   160,   165,   166,   168,   172,   174,
-     183,   184,   188,   192,   193,   194,   198,   199,   203,   204,
-     208,   215,   216,   220,   221,   228,   229,   233,   234,   238,
-     245,   246,   253,   254,   258,   259,   263,   264,   265
+       0,   173,   173,   194,   195,   196,   197,   198,   200,   201,
+     202,   203,   204,   205,   206,   207,   208,   209,   210,   211,
+     212,   216,   217,   218,   219,   220,   221,   222,   223,   224,
+     225,   226,   227,   228,   235,   236,   237,   243,   244,   249,
+     250,   254,   255,   269,   271,   276,   277,   279,   283,   285,
+     302,   303,   307,   311,   312,   313,   317,   318,   322,   323,
+     327,   342,   343,   347,   348,   362,   363,   367,   368,   372,
+     386,   387,   401,   402,   406,   407,   411,   412,   413
 };
 #endif
 
@@ -1280,476 +1307,476 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: exp  */
-#line 84 "tiger.y"
+#line 173 "tiger.y"
                { absyn_tree_ = std::make_unique<absyn::AbsynTree>((yyvsp[0].exp)); }
-#line 1286 "parse.tab.cc"
+#line 1313 "parse.tab.cc"
     break;
 
   case 3: /* exp: INT  */
-#line 90 "tiger.y"
+#line 194 "tiger.y"
         { (yyval.exp) = new absyn::IntExp(GetTokPos(), (yyvsp[0].ival)); }
-#line 1292 "parse.tab.cc"
+#line 1319 "parse.tab.cc"
     break;
 
   case 4: /* exp: STRING  */
-#line 91 "tiger.y"
+#line 195 "tiger.y"
            { (yyval.exp) = new absyn::StringExp(GetTokPos(), (yyvsp[0].sval)); }
-#line 1298 "parse.tab.cc"
+#line 1325 "parse.tab.cc"
     break;
 
   case 5: /* exp: NIL  */
-#line 92 "tiger.y"
+#line 196 "tiger.y"
         { (yyval.exp) = new absyn::NilExp(GetTokPos()); }
-#line 1304 "parse.tab.cc"
+#line 1331 "parse.tab.cc"
     break;
 
   case 6: /* exp: lvalue  */
-#line 93 "tiger.y"
+#line 197 "tiger.y"
            { (yyval.exp) = new absyn::VarExp(GetTokPos(), (yyvsp[0].var)); }
-#line 1310 "parse.tab.cc"
+#line 1337 "parse.tab.cc"
     break;
 
   case 7: /* exp: ID LPAREN actuals RPAREN  */
-#line 94 "tiger.y"
+#line 198 "tiger.y"
                              {
      (yyval.exp) = new absyn::CallExp(GetTokPos(), (yyvsp[-3].sym), (yyvsp[-1].explist)); }
-#line 1317 "parse.tab.cc"
+#line 1344 "parse.tab.cc"
     break;
 
   case 8: /* exp: expop  */
-#line 96 "tiger.y"
+#line 200 "tiger.y"
           { (yyval.exp) = (yyvsp[0].exp); }
-#line 1323 "parse.tab.cc"
+#line 1350 "parse.tab.cc"
     break;
 
   case 9: /* exp: ID LBRACE rec RBRACE  */
-#line 97 "tiger.y"
+#line 201 "tiger.y"
                          { (yyval.exp) = new absyn::RecordExp(GetTokPos(), (yyvsp[-3].sym), (yyvsp[-1].efieldlist)); }
-#line 1329 "parse.tab.cc"
+#line 1356 "parse.tab.cc"
     break;
 
   case 10: /* exp: LPAREN sequencing_exps RPAREN  */
-#line 98 "tiger.y"
+#line 202 "tiger.y"
                                   { (yyval.exp) = new absyn::SeqExp(GetTokPos(), (yyvsp[-1].explist)); }
-#line 1335 "parse.tab.cc"
+#line 1362 "parse.tab.cc"
     break;
 
   case 11: /* exp: lvalue ASSIGN exp  */
-#line 99 "tiger.y"
+#line 203 "tiger.y"
                       { (yyval.exp) = new absyn::AssignExp(GetTokPos(), (yyvsp[-2].var), (yyvsp[0].exp)); }
-#line 1341 "parse.tab.cc"
+#line 1368 "parse.tab.cc"
     break;
 
   case 12: /* exp: IF exp THEN exp  */
-#line 100 "tiger.y"
+#line 204 "tiger.y"
                     { (yyval.exp) = new absyn::IfExp(GetTokPos(), (yyvsp[-2].exp), (yyvsp[0].exp), NULL); }
-#line 1347 "parse.tab.cc"
+#line 1374 "parse.tab.cc"
     break;
 
   case 13: /* exp: IF exp THEN exp ELSE exp  */
-#line 101 "tiger.y"
+#line 205 "tiger.y"
                              { (yyval.exp) = new absyn::IfExp(GetTokPos(), (yyvsp[-4].exp), (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1353 "parse.tab.cc"
+#line 1380 "parse.tab.cc"
     break;
 
   case 14: /* exp: WHILE exp DO exp  */
-#line 102 "tiger.y"
+#line 206 "tiger.y"
                      { (yyval.exp) = new absyn::WhileExp(GetTokPos(), (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1359 "parse.tab.cc"
+#line 1386 "parse.tab.cc"
     break;
 
   case 15: /* exp: FOR ID ASSIGN exp TO exp DO exp  */
-#line 103 "tiger.y"
+#line 207 "tiger.y"
                                     { (yyval.exp) = new absyn::ForExp(GetTokPos(), (yyvsp[-6].sym), (yyvsp[-4].exp), (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1365 "parse.tab.cc"
+#line 1392 "parse.tab.cc"
     break;
 
   case 16: /* exp: BREAK  */
-#line 104 "tiger.y"
+#line 208 "tiger.y"
           { (yyval.exp) = new absyn::BreakExp(GetTokPos()); }
-#line 1371 "parse.tab.cc"
+#line 1398 "parse.tab.cc"
     break;
 
   case 17: /* exp: LET decs IN expseq END  */
-#line 105 "tiger.y"
+#line 209 "tiger.y"
                            { (yyval.exp) = new absyn::LetExp(GetTokPos(), (yyvsp[-3].declist), (yyvsp[-1].exp)); }
-#line 1377 "parse.tab.cc"
+#line 1404 "parse.tab.cc"
     break;
 
   case 18: /* exp: ID LBRACK exp RBRACK OF exp  */
-#line 106 "tiger.y"
+#line 210 "tiger.y"
                                 { (yyval.exp) = new absyn::ArrayExp(GetTokPos(), (yyvsp[-5].sym), (yyvsp[-3].exp), (yyvsp[0].exp)); }
-#line 1383 "parse.tab.cc"
+#line 1410 "parse.tab.cc"
     break;
 
   case 19: /* exp: LPAREN RPAREN  */
-#line 107 "tiger.y"
+#line 211 "tiger.y"
                   { (yyval.exp) = new absyn::VoidExp(GetTokPos()); }
-#line 1389 "parse.tab.cc"
+#line 1416 "parse.tab.cc"
     break;
 
   case 20: /* exp: LPAREN exp RPAREN  */
-#line 108 "tiger.y"
+#line 212 "tiger.y"
                       { (yyval.exp) = (yyvsp[-1].exp); }
-#line 1395 "parse.tab.cc"
+#line 1422 "parse.tab.cc"
     break;
 
   case 21: /* expop: exp PLUS exp  */
-#line 112 "tiger.y"
+#line 216 "tiger.y"
                  { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::PLUS_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1401 "parse.tab.cc"
+#line 1428 "parse.tab.cc"
     break;
 
   case 22: /* expop: exp MINUS exp  */
-#line 113 "tiger.y"
+#line 217 "tiger.y"
                   { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::MINUS_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1407 "parse.tab.cc"
+#line 1434 "parse.tab.cc"
     break;
 
   case 23: /* expop: exp TIMES exp  */
-#line 114 "tiger.y"
+#line 218 "tiger.y"
                   { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::TIMES_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1413 "parse.tab.cc"
+#line 1440 "parse.tab.cc"
     break;
 
   case 24: /* expop: exp DIVIDE exp  */
-#line 115 "tiger.y"
+#line 219 "tiger.y"
                    { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::DIVIDE_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1419 "parse.tab.cc"
+#line 1446 "parse.tab.cc"
     break;
 
   case 25: /* expop: exp EQ exp  */
-#line 116 "tiger.y"
+#line 220 "tiger.y"
                { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::EQ_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1425 "parse.tab.cc"
+#line 1452 "parse.tab.cc"
     break;
 
   case 26: /* expop: exp NEQ exp  */
-#line 117 "tiger.y"
+#line 221 "tiger.y"
                 { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::NEQ_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1431 "parse.tab.cc"
+#line 1458 "parse.tab.cc"
     break;
 
   case 27: /* expop: exp LT exp  */
-#line 118 "tiger.y"
+#line 222 "tiger.y"
                { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::LT_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1437 "parse.tab.cc"
+#line 1464 "parse.tab.cc"
     break;
 
   case 28: /* expop: exp LE exp  */
-#line 119 "tiger.y"
+#line 223 "tiger.y"
                { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::LE_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1443 "parse.tab.cc"
+#line 1470 "parse.tab.cc"
     break;
 
   case 29: /* expop: exp GT exp  */
-#line 120 "tiger.y"
+#line 224 "tiger.y"
                { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::GT_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1449 "parse.tab.cc"
+#line 1476 "parse.tab.cc"
     break;
 
   case 30: /* expop: exp GE exp  */
-#line 121 "tiger.y"
+#line 225 "tiger.y"
                { (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::GE_OP, (yyvsp[-2].exp), (yyvsp[0].exp)); }
-#line 1455 "parse.tab.cc"
+#line 1482 "parse.tab.cc"
     break;
 
   case 31: /* expop: exp AND exp  */
-#line 122 "tiger.y"
+#line 226 "tiger.y"
                 { (yyval.exp) = new absyn::IfExp(GetTokPos(), (yyvsp[-2].exp), (yyvsp[0].exp), new absyn::IntExp(GetTokPos(), 0)); }
-#line 1461 "parse.tab.cc"
+#line 1488 "parse.tab.cc"
     break;
 
   case 32: /* expop: exp OR exp  */
-#line 123 "tiger.y"
+#line 227 "tiger.y"
                { (yyval.exp) = new absyn::IfExp(GetTokPos(), (yyvsp[-2].exp), new absyn::IntExp(GetTokPos(), 1), (yyvsp[0].exp)); }
-#line 1467 "parse.tab.cc"
+#line 1494 "parse.tab.cc"
     break;
 
   case 33: /* expop: MINUS exp  */
-#line 124 "tiger.y"
+#line 228 "tiger.y"
               {
      (yyval.exp) = new absyn::OpExp(GetTokPos(), absyn::MINUS_OP, new absyn::IntExp(GetTokPos(), 0), (yyvsp[0].exp)); }
-#line 1474 "parse.tab.cc"
+#line 1501 "parse.tab.cc"
     break;
 
   case 34: /* expseq: sequencing_exps  */
-#line 131 "tiger.y"
+#line 235 "tiger.y"
                     { (yyval.exp) = new absyn::SeqExp(GetTokPos(), (yyvsp[0].explist)); }
-#line 1480 "parse.tab.cc"
+#line 1507 "parse.tab.cc"
     break;
 
   case 35: /* expseq: exp  */
-#line 132 "tiger.y"
+#line 236 "tiger.y"
         { (yyval.exp) = new absyn::SeqExp(GetTokPos(), new absyn::ExpList((yyvsp[0].exp))); }
-#line 1486 "parse.tab.cc"
+#line 1513 "parse.tab.cc"
     break;
 
   case 36: /* expseq: %empty  */
-#line 133 "tiger.y"
+#line 237 "tiger.y"
    { (yyval.exp) = new absyn::VoidExp(GetTokPos()); }
-#line 1492 "parse.tab.cc"
+#line 1519 "parse.tab.cc"
     break;
 
   case 37: /* sequencing_exps: exp SEMICOLON exp  */
-#line 139 "tiger.y"
+#line 243 "tiger.y"
                       { (yyval.explist) = new absyn::ExpList((yyvsp[0].exp)); (yyval.explist)->Prepend((yyvsp[-2].exp)); }
-#line 1498 "parse.tab.cc"
+#line 1525 "parse.tab.cc"
     break;
 
   case 38: /* sequencing_exps: exp SEMICOLON sequencing_exps  */
-#line 140 "tiger.y"
+#line 244 "tiger.y"
                                   { (yyval.explist) = (yyvsp[0].explist)->Prepend((yyvsp[-2].exp)); }
-#line 1504 "parse.tab.cc"
+#line 1531 "parse.tab.cc"
     break;
 
   case 39: /* actuals: nonemptyactuals  */
-#line 145 "tiger.y"
+#line 249 "tiger.y"
                     { (yyval.explist) = (yyvsp[0].explist); }
-#line 1510 "parse.tab.cc"
+#line 1537 "parse.tab.cc"
     break;
 
   case 40: /* actuals: %empty  */
-#line 146 "tiger.y"
+#line 250 "tiger.y"
    { (yyval.explist) = new absyn::ExpList(); }
-#line 1516 "parse.tab.cc"
+#line 1543 "parse.tab.cc"
     break;
 
   case 41: /* nonemptyactuals: exp COMMA nonemptyactuals  */
-#line 150 "tiger.y"
+#line 254 "tiger.y"
                               { (yyval.explist) = (yyvsp[0].explist)->Prepend((yyvsp[-2].exp)); }
-#line 1522 "parse.tab.cc"
+#line 1549 "parse.tab.cc"
     break;
 
   case 42: /* nonemptyactuals: exp  */
-#line 151 "tiger.y"
+#line 255 "tiger.y"
         { (yyval.explist) = new absyn::ExpList((yyvsp[0].exp)); }
-#line 1528 "parse.tab.cc"
-    break;
-
-  case 43: /* lvalue: ID  */
-#line 158 "tiger.y"
-       {
-     (yyval.var) = new absyn::SimpleVar(GetTokPos(), (yyvsp[0].sym)); }
-#line 1535 "parse.tab.cc"
-    break;
-
-  case 44: /* lvalue: oneormore  */
-#line 160 "tiger.y"
-              {
-     (yyval.var) = (yyvsp[0].var); }
-#line 1542 "parse.tab.cc"
-    break;
-
-  case 45: /* oneormore: oneormore LBRACK exp RBRACK  */
-#line 165 "tiger.y"
-                                { (yyval.var) = new absyn::SubscriptVar(GetTokPos(), (yyvsp[-3].var), (yyvsp[-1].exp)); }
-#line 1548 "parse.tab.cc"
-    break;
-
-  case 46: /* oneormore: oneormore DOT ID  */
-#line 166 "tiger.y"
-                     {
-     (yyval.var) = new absyn::FieldVar(GetTokPos(), (yyvsp[-2].var), (yyvsp[0].sym)); }
 #line 1555 "parse.tab.cc"
     break;
 
-  case 47: /* oneormore: one  */
-#line 168 "tiger.y"
-        { (yyval.var) = (yyvsp[0].var); }
-#line 1561 "parse.tab.cc"
+  case 43: /* lvalue: ID  */
+#line 269 "tiger.y"
+       {
+     (yyval.var) = new absyn::SimpleVar(GetTokPos(), (yyvsp[0].sym)); }
+#line 1562 "parse.tab.cc"
     break;
 
-  case 48: /* one: ID LBRACK exp RBRACK  */
-#line 172 "tiger.y"
-                         {
-     (yyval.var) = new absyn::SubscriptVar(GetTokPos(), new absyn::SimpleVar(GetTokPos(), (yyvsp[-3].sym)), (yyvsp[-1].exp)); }
-#line 1568 "parse.tab.cc"
-    break;
-
-  case 49: /* one: ID DOT ID  */
-#line 174 "tiger.y"
+  case 44: /* lvalue: oneormore  */
+#line 271 "tiger.y"
               {
-     (yyval.var) = new absyn::FieldVar(GetTokPos(), new absyn::SimpleVar(GetTokPos(), (yyvsp[-2].sym)), (yyvsp[0].sym)); }
+     (yyval.var) = (yyvsp[0].var); }
+#line 1569 "parse.tab.cc"
+    break;
+
+  case 45: /* oneormore: oneormore LBRACK exp RBRACK  */
+#line 276 "tiger.y"
+                                { (yyval.var) = new absyn::SubscriptVar(GetTokPos(), (yyvsp[-3].var), (yyvsp[-1].exp)); }
 #line 1575 "parse.tab.cc"
     break;
 
+  case 46: /* oneormore: oneormore DOT ID  */
+#line 277 "tiger.y"
+                     {
+     (yyval.var) = new absyn::FieldVar(GetTokPos(), (yyvsp[-2].var), (yyvsp[0].sym)); }
+#line 1582 "parse.tab.cc"
+    break;
+
+  case 47: /* oneormore: one  */
+#line 279 "tiger.y"
+        { (yyval.var) = (yyvsp[0].var); }
+#line 1588 "parse.tab.cc"
+    break;
+
+  case 48: /* one: ID LBRACK exp RBRACK  */
+#line 283 "tiger.y"
+                         {
+     (yyval.var) = new absyn::SubscriptVar(GetTokPos(), new absyn::SimpleVar(GetTokPos(), (yyvsp[-3].sym)), (yyvsp[-1].exp)); }
+#line 1595 "parse.tab.cc"
+    break;
+
+  case 49: /* one: ID DOT ID  */
+#line 285 "tiger.y"
+              {
+     (yyval.var) = new absyn::FieldVar(GetTokPos(), new absyn::SimpleVar(GetTokPos(), (yyvsp[-2].sym)), (yyvsp[0].sym)); }
+#line 1602 "parse.tab.cc"
+    break;
+
   case 50: /* tydec: tydec_one tydec  */
-#line 183 "tiger.y"
+#line 302 "tiger.y"
                     { (yyval.tydeclist) = (yyvsp[0].tydeclist)->Prepend((yyvsp[-1].tydec)); }
-#line 1581 "parse.tab.cc"
+#line 1608 "parse.tab.cc"
     break;
 
   case 51: /* tydec: tydec_one  */
-#line 184 "tiger.y"
+#line 303 "tiger.y"
               { (yyval.tydeclist) = new absyn::NameAndTyList((yyvsp[0].tydec)); }
-#line 1587 "parse.tab.cc"
+#line 1614 "parse.tab.cc"
     break;
 
   case 52: /* tydec_one: TYPE ID EQ ty  */
-#line 188 "tiger.y"
+#line 307 "tiger.y"
                   { (yyval.tydec) = new absyn::NameAndTy((yyvsp[-2].sym), (yyvsp[0].ty)); }
-#line 1593 "parse.tab.cc"
+#line 1620 "parse.tab.cc"
     break;
 
   case 53: /* ty: ID  */
-#line 192 "tiger.y"
+#line 311 "tiger.y"
        { (yyval.ty) = new absyn::NameTy(GetTokPos(), (yyvsp[0].sym)); }
-#line 1599 "parse.tab.cc"
+#line 1626 "parse.tab.cc"
     break;
 
   case 54: /* ty: LBRACE tyfields RBRACE  */
-#line 193 "tiger.y"
+#line 312 "tiger.y"
                            { (yyval.ty) = new absyn::RecordTy(GetTokPos(), (yyvsp[-1].fieldlist)); }
-#line 1605 "parse.tab.cc"
+#line 1632 "parse.tab.cc"
     break;
 
   case 55: /* ty: ARRAY OF ID  */
-#line 194 "tiger.y"
+#line 313 "tiger.y"
                 { (yyval.ty) = new absyn::ArrayTy(GetTokPos(), (yyvsp[0].sym)); }
-#line 1611 "parse.tab.cc"
+#line 1638 "parse.tab.cc"
     break;
 
   case 56: /* tyfields: tyfields_nonempty  */
-#line 198 "tiger.y"
+#line 317 "tiger.y"
                       { (yyval.fieldlist) = (yyvsp[0].fieldlist); }
-#line 1617 "parse.tab.cc"
+#line 1644 "parse.tab.cc"
     break;
 
   case 57: /* tyfields: %empty  */
-#line 199 "tiger.y"
+#line 318 "tiger.y"
    { (yyval.fieldlist) = new absyn::FieldList(); }
-#line 1623 "parse.tab.cc"
+#line 1650 "parse.tab.cc"
     break;
 
   case 58: /* tyfields_nonempty: tyfield COMMA tyfields_nonempty  */
-#line 203 "tiger.y"
+#line 322 "tiger.y"
                                     { (yyval.fieldlist) = (yyvsp[0].fieldlist)->Prepend((yyvsp[-2].field)); }
-#line 1629 "parse.tab.cc"
+#line 1656 "parse.tab.cc"
     break;
 
   case 59: /* tyfields_nonempty: tyfield  */
-#line 204 "tiger.y"
+#line 323 "tiger.y"
             { (yyval.fieldlist) = new absyn::FieldList((yyvsp[0].field)); }
-#line 1635 "parse.tab.cc"
+#line 1662 "parse.tab.cc"
     break;
 
   case 60: /* tyfield: ID COLON ID  */
-#line 208 "tiger.y"
+#line 327 "tiger.y"
                 { (yyval.field) = new absyn::Field(GetTokPos(), (yyvsp[-2].sym), (yyvsp[0].sym)); }
-#line 1641 "parse.tab.cc"
+#line 1668 "parse.tab.cc"
     break;
 
   case 61: /* fundec: fundec_one fundec  */
-#line 215 "tiger.y"
+#line 342 "tiger.y"
                       { (yyval.fundeclist) = (yyvsp[0].fundeclist)->Prepend((yyvsp[-1].fundec)); }
-#line 1647 "parse.tab.cc"
+#line 1674 "parse.tab.cc"
     break;
 
   case 62: /* fundec: fundec_one  */
-#line 216 "tiger.y"
+#line 343 "tiger.y"
                { (yyval.fundeclist) = new absyn::FunDecList((yyvsp[0].fundec)); }
-#line 1653 "parse.tab.cc"
+#line 1680 "parse.tab.cc"
     break;
 
   case 63: /* fundec_one: FUNCTION ID LPAREN tyfields RPAREN EQ exp  */
-#line 220 "tiger.y"
+#line 347 "tiger.y"
                                               { (yyval.fundec) = new absyn::FunDec(GetTokPos(), (yyvsp[-5].sym), (yyvsp[-3].fieldlist), NULL, (yyvsp[0].exp)); }
-#line 1659 "parse.tab.cc"
+#line 1686 "parse.tab.cc"
     break;
 
   case 64: /* fundec_one: FUNCTION ID LPAREN tyfields RPAREN COLON ID EQ exp  */
-#line 221 "tiger.y"
+#line 348 "tiger.y"
                                                        { (yyval.fundec) = new absyn::FunDec(GetTokPos(), (yyvsp[-7].sym), (yyvsp[-5].fieldlist), (yyvsp[-2].sym), (yyvsp[0].exp)); }
-#line 1665 "parse.tab.cc"
+#line 1692 "parse.tab.cc"
     break;
 
   case 65: /* rec: rec_nonempty  */
-#line 228 "tiger.y"
+#line 362 "tiger.y"
                  { (yyval.efieldlist) = (yyvsp[0].efieldlist); }
-#line 1671 "parse.tab.cc"
+#line 1698 "parse.tab.cc"
     break;
 
   case 66: /* rec: %empty  */
-#line 229 "tiger.y"
+#line 363 "tiger.y"
    { (yyval.efieldlist) = new absyn::EFieldList(); }
-#line 1677 "parse.tab.cc"
+#line 1704 "parse.tab.cc"
     break;
 
   case 67: /* rec_nonempty: rec_one COMMA rec_nonempty  */
-#line 233 "tiger.y"
+#line 367 "tiger.y"
                                { (yyval.efieldlist) = (yyvsp[0].efieldlist)->Prepend((yyvsp[-2].efield)); }
-#line 1683 "parse.tab.cc"
+#line 1710 "parse.tab.cc"
     break;
 
   case 68: /* rec_nonempty: rec_one  */
-#line 234 "tiger.y"
+#line 368 "tiger.y"
             { (yyval.efieldlist) = new absyn::EFieldList((yyvsp[0].efield)); }
-#line 1689 "parse.tab.cc"
+#line 1716 "parse.tab.cc"
     break;
 
   case 69: /* rec_one: ID EQ exp  */
-#line 238 "tiger.y"
+#line 372 "tiger.y"
               { (yyval.efield) = new absyn::EField((yyvsp[-2].sym), (yyvsp[0].exp)); }
-#line 1695 "parse.tab.cc"
+#line 1722 "parse.tab.cc"
     break;
 
   case 70: /* vardec: VAR ID ASSIGN exp  */
-#line 245 "tiger.y"
+#line 386 "tiger.y"
                       { (yyval.dec) = new absyn::VarDec(GetTokPos(), (yyvsp[-2].sym), NULL, (yyvsp[0].exp)); }
-#line 1701 "parse.tab.cc"
+#line 1728 "parse.tab.cc"
     break;
 
   case 71: /* vardec: VAR ID COLON ID ASSIGN exp  */
-#line 246 "tiger.y"
+#line 387 "tiger.y"
                                { (yyval.dec) = new absyn::VarDec(GetTokPos(), (yyvsp[-4].sym), (yyvsp[-2].sym), (yyvsp[0].exp)); }
-#line 1707 "parse.tab.cc"
+#line 1734 "parse.tab.cc"
     break;
 
   case 72: /* decs: decs_nonempty  */
-#line 253 "tiger.y"
+#line 401 "tiger.y"
                   { (yyval.declist) = (yyvsp[0].declist); }
-#line 1713 "parse.tab.cc"
+#line 1740 "parse.tab.cc"
     break;
 
   case 73: /* decs: %empty  */
-#line 254 "tiger.y"
+#line 402 "tiger.y"
    { (yyval.declist) = new absyn::DecList(); }
-#line 1719 "parse.tab.cc"
+#line 1746 "parse.tab.cc"
     break;
 
   case 74: /* decs_nonempty: decs_nonempty_s decs_nonempty  */
-#line 258 "tiger.y"
+#line 406 "tiger.y"
                                   { (yyval.declist) = (yyvsp[0].declist)->Prepend((yyvsp[-1].dec)); }
-#line 1725 "parse.tab.cc"
+#line 1752 "parse.tab.cc"
     break;
 
   case 75: /* decs_nonempty: decs_nonempty_s  */
-#line 259 "tiger.y"
+#line 407 "tiger.y"
                     { (yyval.declist) = new absyn::DecList((yyvsp[0].dec)); }
-#line 1731 "parse.tab.cc"
+#line 1758 "parse.tab.cc"
     break;
 
   case 76: /* decs_nonempty_s: tydec  */
-#line 263 "tiger.y"
+#line 411 "tiger.y"
           { (yyval.dec) = new absyn::TypeDec(GetTokPos(), (yyvsp[0].tydeclist)); }
-#line 1737 "parse.tab.cc"
+#line 1764 "parse.tab.cc"
     break;
 
   case 77: /* decs_nonempty_s: vardec  */
-#line 264 "tiger.y"
+#line 412 "tiger.y"
            { (yyval.dec) = (yyvsp[0].dec); }
-#line 1743 "parse.tab.cc"
+#line 1770 "parse.tab.cc"
     break;
 
   case 78: /* decs_nonempty_s: fundec  */
-#line 265 "tiger.y"
+#line 413 "tiger.y"
            { (yyval.dec) = new absyn::FunctionDec(GetTokPos(), (yyvsp[0].fundeclist)); }
-#line 1749 "parse.tab.cc"
+#line 1776 "parse.tab.cc"
     break;
 
 
-#line 1753 "parse.tab.cc"
+#line 1780 "parse.tab.cc"
 
       default: break;
     }
@@ -1942,13 +1969,30 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 268 "tiger.y"
+#line 416 "tiger.y"
 
 
+/**
+ * @brief Error reporting function called by the parser on syntax errors
+ * @param s Error message string
+ */
 void yyerror(const char *s) {
     errormsg_->Error(GetTokPos(), "%s", s);
 }
 
+/**
+ * @brief Main parsing function for Tiger source files
+ *
+ * This function orchestrates the complete parsing process:
+ * 1. Initializes error handling and lexer state
+ * 2. Opens the source file for lexing
+ * 3. Invokes the parser (yyparse)
+ * 4. Returns the constructed AST if parsing succeeds
+ * 5. Handles file I/O and error conditions
+ *
+ * @param fname Path to the Tiger source file to parse
+ * @return Unique pointer to the parsed AST, or nullptr if parsing failed
+ */
 std::unique_ptr<absyn::AbsynTree> Parse(const std::string &fname) {
     errormsg_ = new err::ErrorMsg(fname);
     InitLexer(errormsg_);

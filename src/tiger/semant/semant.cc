@@ -1,3 +1,19 @@
+/**
+ * @file semant.cc
+ * @brief Implementation of semantic analysis for the Tiger programming language - Lab 4
+ *
+ * This file implements the semantic analysis phase of the Tiger compiler.
+ * It performs type checking, symbol resolution, and ensures that the program
+ * follows Tiger's type and scoping rules.
+ *
+ * Key responsibilities:
+ * - Type checking of expressions and declarations
+ * - Symbol table management and scoping
+ * - Detection of semantic errors (type mismatches, undefined variables, etc.)
+ * - Construction of type information for the AST
+ * - Support for mutually recursive type and function declarations
+ */
+
 #include "tiger/absyn/absyn.h"
 #include "tiger/semant/semant.h"
 
@@ -6,11 +22,33 @@
 using namespace std;
 namespace absyn {
 
+/**
+ * @brief Performs semantic analysis on the abstract syntax tree
+ *
+ * This method initiates semantic analysis by calling SemAnalyze on the root
+ * expression node with initial environments and a label count of 0.
+ *
+ * @param venv Variable environment containing variable and function definitions
+ * @param tenv Type environment containing type definitions
+ * @param errormsg Error message handler for reporting semantic errors
+ */
 void AbsynTree::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
                            err::ErrorMsg *errormsg) const {
   root_->SemAnalyze(venv, tenv, 0, errormsg);
 }
 
+/**
+ * @brief Performs semantic analysis on a simple variable reference
+ *
+ * Looks up the variable in the variable environment and returns its type.
+ * Reports an error if the variable is not found or is not a variable (e.g., a function).
+ *
+ * @param venv Variable environment for symbol lookup
+ * @param tenv Type environment (unused for variables)
+ * @param labelcount Current label count for break statements (unused)
+ * @param errormsg Error handler for reporting semantic errors
+ * @return Type of the variable, or IntTy if undefined
+ */
 type::Ty *SimpleVar::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
                                 int labelcount, err::ErrorMsg *errormsg) const {
   env::EnvEntry* entry = venv->Look(sym_);
@@ -21,6 +59,18 @@ type::Ty *SimpleVar::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
   return (static_cast<env::VarEntry*>(entry))->ty_->ActualTy();
 }
 
+/**
+ * @brief Performs semantic analysis on a field access (record.field)
+ *
+ * First analyzes the record variable, then looks up the field in the record's
+ * field list. Reports errors if the variable is not a record or the field doesn't exist.
+ *
+ * @param venv Variable environment for symbol lookup
+ * @param tenv Type environment (unused for field access)
+ * @param labelcount Current label count for break statements (unused)
+ * @param errormsg Error handler for reporting semantic errors
+ * @return Type of the field, or IntTy if there's an error
+ */
 type::Ty *FieldVar::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
                                int labelcount, err::ErrorMsg *errormsg) const {
   type::Ty* varTy;
@@ -43,6 +93,18 @@ type::Ty *FieldVar::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
 
 }
 
+/**
+ * @brief Performs semantic analysis on an array subscript access (array[index])
+ *
+ * First analyzes the array variable, then checks that it's actually an array type
+ * and that the subscript is an integer. Returns the element type of the array.
+ *
+ * @param venv Variable environment for symbol lookup
+ * @param tenv Type environment (unused for subscript access)
+ * @param labelcount Current label count for break statements (unused)
+ * @param errormsg Error handler for reporting semantic errors
+ * @return Element type of the array, or IntTy if there's an error
+ */
 type::Ty *SubscriptVar::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
                                    int labelcount,
                                    err::ErrorMsg *errormsg) const {
@@ -63,11 +125,35 @@ type::Ty *SubscriptVar::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
   return static_cast<type::ArrayTy*>(varTy)->ty_;
 }
 
+/**
+ * @brief Performs semantic analysis on a variable expression
+ *
+ * Simply delegates to the variable's semantic analysis method.
+ * Variable expressions have the type of the variable they reference.
+ *
+ * @param venv Variable environment for symbol lookup
+ * @param tenv Type environment (unused)
+ * @param labelcount Current label count for break statements (unused)
+ * @param errormsg Error handler (unused for variable expressions)
+ * @return Type of the referenced variable
+ */
 type::Ty *VarExp::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
                              int labelcount, err::ErrorMsg *errormsg) const {
   return var_->SemAnalyze(venv, tenv, labelcount, errormsg)->ActualTy();
 }
 
+/**
+ * @brief Performs semantic analysis on a nil expression
+ *
+ * Nil expressions always have the NilTy type, which is compatible
+ * with any record type in Tiger.
+ *
+ * @param venv Variable environment (unused)
+ * @param tenv Type environment (unused)
+ * @param labelcount Current label count (unused)
+ * @param errormsg Error handler (unused)
+ * @return NilTy singleton instance
+ */
 type::Ty *NilExp::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
                              int labelcount, err::ErrorMsg *errormsg) const {
   return type::NilTy::Instance();

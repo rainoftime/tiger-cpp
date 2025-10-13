@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 22 "tiger.y"
+#line 65 "tiger.y"
 
 #include "tiger/absyn/absyn.h"
 #include "tiger/symbol/symbol.h"
@@ -112,27 +112,31 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 27 "tiger.y"
+#line 76 "tiger.y"
 
-  int ival;
-  std::string* sval;
-  sym::Symbol *sym;
-  absyn::Exp *exp;
-  absyn::ExpList *explist;
-  absyn::Var *var;
-  absyn::DecList *declist;
-  absyn::Dec *dec;
-  absyn::EFieldList *efieldlist;
-  absyn::EField *efield;
-  absyn::NameAndTyList *tydeclist;
-  absyn::NameAndTy *tydec;
-  absyn::FieldList *fieldlist;
-  absyn::Field *field;
-  absyn::FunDecList *fundeclist;
-  absyn::FunDec *fundec;
-  absyn::Ty *ty;
+  int ival;                          /**< Integer literal values */
+  std::string* sval;                 /**< String literal values */
+  sym::Symbol *sym;                  /**< Symbol table entries */
 
-#line 136 "parse.tab.hh"
+  absyn::Exp *exp;                   /**< Expression nodes */
+  absyn::ExpList *explist;           /**< Expression list nodes */
+  absyn::Var *var;                   /**< Variable reference nodes */
+
+  absyn::DecList *declist;           /**< Declaration list nodes */
+  absyn::Dec *dec;                   /**< Declaration nodes */
+  absyn::EFieldList *efieldlist;     /**< Expression field list nodes */
+  absyn::EField *efield;             /**< Expression field nodes */
+
+  absyn::NameAndTyList *tydeclist;    /**< Type declaration list nodes */
+  absyn::NameAndTy *tydec;           /**< Type declaration nodes */
+  absyn::FieldList *fieldlist;       /**< Field list nodes */
+  absyn::Field *field;               /**< Field nodes */
+
+  absyn::FunDecList *fundeclist;     /**< Function declaration list nodes */
+  absyn::FunDec *fundec;             /**< Function declaration nodes */
+  absyn::Ty *ty;                     /**< Type nodes */
+
+#line 140 "parse.tab.hh"
 
 };
 typedef union YYSTYPE YYSTYPE;
