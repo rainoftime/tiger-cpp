@@ -388,7 +388,8 @@ type::Ty *ArrayExp::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv,
   type::Ty* arrayTy, * sizeTy, * initTy;
 
   arrayTy = tenv->Look(typ_);
-  if (!arrayTy || typeid(*arrayTy->ActualTy()) != typeid(type::ArrayTy)) {
+  type::Ty *arrayActualTy = arrayTy ? arrayTy->ActualTy() : nullptr;
+  if (!arrayTy || typeid(*arrayActualTy) != typeid(type::ArrayTy)) {
     errormsg->Error(pos_, "no array type %s", typ_->Name().data());
     return type::IntTy::Instance();
   }
@@ -467,8 +468,9 @@ void VarDec::SemAnalyze(env::VEnvPtr venv, env::TEnvPtr tenv, int labelcount,
   }
 
   initTy = init_->SemAnalyze(venv, tenv, labelcount, errormsg);
+  type::Ty *tyActualTy = typ_ ? ty->ActualTy() : nullptr;
   if (typeid(*initTy) == typeid(type::NilTy) 
-    && (!typ_ || typeid(*ty->ActualTy()) != typeid(type::RecordTy))) {
+    && (!typ_ || typeid(*tyActualTy) != typeid(type::RecordTy))) {
       errormsg->Error(init_->pos_, "init should not be nil without type specified");
       return;
   } else if (typ_ && !(initTy->IsSameType(ty))) {

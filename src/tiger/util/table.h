@@ -1,3 +1,15 @@
+/**
+ * @file table.h
+ * @brief Generic hash table implementation
+ * 
+ * Provides a generic hash table with the following features:
+ * - Hash-based lookup using pointer keys
+ * - Stack-like operations (Enter, Pop) for scoped symbol tables
+ * - Efficient insertion and lookup
+ * 
+ * Used as the base for symbol tables (sym::Table) throughout the compiler.
+ */
+
 #ifndef TIGER_UTIL_TABLE_H_
 #define TIGER_UTIL_TABLE_H_
 
@@ -5,6 +17,16 @@
 #include <functional>
 
 namespace tab {
+
+/**
+ * @brief Generic hash table with stack operations
+ * 
+ * A hash table that supports stack-like operations for implementing
+ * scoped symbol tables. Keys are pointers (typically Symbol pointers).
+ * 
+ * @tparam KeyType Type of keys (must be pointer type)
+ * @tparam ValueType Type of values stored
+ */
 template <typename KeyType, typename ValueType> class Table {
 public:
   Table() : top_(nullptr), table_() {}

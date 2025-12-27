@@ -1,3 +1,18 @@
+/**
+ * @file graph.h
+ * @brief Generic graph data structure
+ * 
+ * Provides a generic directed graph implementation used for:
+ * - Control flow graphs (CFG) in code generation
+ * - Interference graphs in register allocation
+ * 
+ * The graph supports:
+ * - Node creation and edge addition
+ * - Adjacency queries
+ * - Degree computation
+ * - Specialized interference graph (IGraph) for register allocation
+ */
+
 #ifndef TIGER_UTIL_GRAPH_H_
 #define TIGER_UTIL_GRAPH_H_
 
@@ -14,6 +29,14 @@ namespace graph {
 template <typename T> class Node;
 template <typename T> class NodeList;
 
+/**
+ * @brief Generic directed graph
+ * 
+ * A directed graph where each node can store arbitrary information.
+ * Used for control flow graphs and interference graphs.
+ * 
+ * @tparam T Type of information stored in each node
+ */
 template <typename T> class Graph {
 public:
   // Make a new graph
@@ -47,8 +70,20 @@ protected:
   NodeList<T> *my_nodes_;
 };
 
+/**
+ * @brief Interference graph for register allocation
+ * 
+ * Specialized graph for register allocation where:
+ * - Nodes represent temporaries (registers/variables)
+ * - Edges represent interference (two temporaries can't share a register)
+ * - Precolored nodes represent machine registers
+ * - Degree tracking is optimized for graph coloring algorithms
+ */
 class IGraph : public Graph<temp::Temp> {
 public:
+  /**
+   * @param precolored List of precolored temporaries (machine registers)
+   */
   IGraph(temp::TempList *precolored) 
     : Graph<temp::Temp>(), precolored_(precolored) {}
 

@@ -1,13 +1,36 @@
+/**
+ * @file absyn.cc
+ * @brief Implementation of Abstract Syntax Tree operations
+ * 
+ * This file implements:
+ * - Destructors for all AST node types
+ * - Print() methods for pretty-printing ASTs
+ * - Helper functions for formatting output
+ * 
+ * The Print() methods recursively traverse the AST and output a human-readable
+ * representation. This is useful for debugging and understanding the parsed structure.
+ */
+
 #include "tiger/absyn/absyn.h"
 #include "tiger/errormsg/errormsg.h"
 
 namespace {
 
+/**
+ * @brief Helper function to indent output
+ * @param out Output file
+ * @param d Indentation depth
+ */
 inline void Indent(FILE *out, int d) {
   for (int i = 0; i <= d; i++)
     fprintf(out, " ");
 }
 
+/**
+ * @brief Helper function to print operator names
+ * @param out Output file
+ * @param d Operator to print
+ */
 inline void PrintOper(FILE *out, absyn::Oper d) {
   static std::array<std::string_view, absyn::ABSYN_OPER_COUNT> str_oper = {
       "PLUS",     "MINUS",    "TIMES",  "DIVIDE", "EQUAL",

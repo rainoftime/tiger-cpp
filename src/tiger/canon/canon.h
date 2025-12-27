@@ -1,10 +1,10 @@
 #ifndef TIGER_CANON_CANON_H_
 #define TIGER_CANON_CANON_H_
 
-#include <cstdio>
+//#include <cstdio>
 #include <list>
 #include <memory>
-#include <vector>
+//#include <vector>
 
 #include "tiger/frame/temp.h"
 #include "tiger/translate/tree.h"

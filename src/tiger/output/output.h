@@ -1,3 +1,16 @@
+/**
+ * @file output.h
+ * @brief Assembly code output generation
+ * 
+ * This module handles writing the final assembly code to output files.
+ * The AssemGen class coordinates the final compilation phases:
+ * - Canonicalization
+ * - Code generation
+ * - Register allocation (optional)
+ * 
+ * Outputs x64 assembly code to a .s file.
+ */
+
 #ifndef TIGER_COMPILER_OUTPUT_H
 #define TIGER_COMPILER_OUTPUT_H
 
@@ -12,6 +25,12 @@
 
 namespace output {
 
+/**
+ * @brief Assembly code generator
+ * 
+ * Coordinates the final phases of compilation and writes assembly output.
+ * Can optionally perform register allocation or output unallocated code.
+ */
 class AssemGen {
 public:
   AssemGen() = delete;
@@ -26,7 +45,11 @@ public:
   ~AssemGen() { fclose(out_); }
 
   /**
-   * Generate assembly
+   * @brief Generate assembly code
+   * @param need_ra Whether to perform register allocation
+   * 
+   * Performs canonicalization, code generation, and optionally register
+   * allocation, then writes the assembly code to the output file.
    */
   void GenAssem(bool need_ra);
 

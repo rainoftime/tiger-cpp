@@ -1,3 +1,16 @@
+/**
+ * @file errormsg.h
+ * @brief Error message handling and source position tracking
+ * 
+ * This module provides error reporting for the Tiger compiler:
+ * - Tracks source file position (line number, column)
+ * - Formats and outputs error messages with position information
+ * - Maintains error count for determining compilation success
+ * 
+ * The ErrorMsg class is used throughout the compiler pipeline to report
+ * errors with accurate source positions.
+ */
+
 #ifndef TIGER_ERRORMSG_ERROMSG_H_
 #define TIGER_ERRORMSG_ERROMSG_H_
 
@@ -6,11 +19,18 @@
 #include <string>
 
 /**
- * Forward Declarations
+ * @brief Forward declaration
  */
 class Scanner;
 
 namespace err {
+
+/**
+ * @brief Error message handler with position tracking
+ * 
+ * Tracks the current position in the source file and formats error messages.
+ * Position tracking is updated by the lexer as it processes tokens.
+ */
 class ErrorMsg {
   friend class ::Scanner;
 

@@ -1,13 +1,44 @@
+/**
+ * @file env.cc
+ * @brief Implementation of base environment initialization
+ * 
+ * This file initializes the base type and variable environments with
+ * built-in types and standard library functions. The base environment
+ * is populated separately for semantic analysis (sem namespace) and
+ * IR translation (tr namespace).
+ */
+
 #include "tiger/env/env.h"
 #include "tiger/translate/translate.h"
 #include "tiger/semant/semant.h"
 
 namespace sem {
+
+/**
+ * @brief Initialize base type environment for semantic analysis
+ * 
+ * Adds built-in types: int and string
+ */
 void ProgSem::FillBaseTEnv() {
   tenv_->Enter(sym::Symbol::UniqueSymbol("int"), type::IntTy::Instance());
   tenv_->Enter(sym::Symbol::UniqueSymbol("string"), type::StringTy::Instance());
 }
 
+/**
+ * @brief Initialize base variable environment for semantic analysis
+ * 
+ * Adds standard library functions:
+ * - flush(): Flush output buffer
+ * - exit(n): Exit with code n
+ * - chr(n): Convert integer to character
+ * - getchar(): Read character from input
+ * - print(s): Print string
+ * - printi(n): Print integer
+ * - ord(s): Get first character of string as integer
+ * - size(s): Get string length
+ * - concat(s1, s2): Concatenate two strings
+ * - substring(s, start, len): Extract substring
+ */
 void ProgSem::FillBaseVEnv() {
   type::Ty *result;
   type::TyList *formals;
@@ -63,11 +94,24 @@ void ProgSem::FillBaseVEnv() {
 
 namespace tr {
 
+/**
+ * @brief Initialize base type environment for IR translation
+ * 
+ * Adds built-in types: int and string
+ * Same as semantic analysis version.
+ */
 void ProgTr::FillBaseTEnv() {
   tenv_->Enter(sym::Symbol::UniqueSymbol("int"), type::IntTy::Instance());
   tenv_->Enter(sym::Symbol::UniqueSymbol("string"), type::StringTy::Instance());
 }
 
+/**
+ * @brief Initialize base variable environment for IR translation
+ * 
+ * Adds standard library functions with frame information (level, label).
+ * Same functions as semantic analysis, but includes translation-time
+ * information needed for code generation.
+ */
 void ProgTr::FillBaseVEnv() {
   type::Ty *result;
   type::TyList *formals;

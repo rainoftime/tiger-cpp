@@ -82,8 +82,8 @@ void RegAllocator::RegAlloc() {
     std::vector<live::InstrPos> delete_moves;
     for (auto instr_it = instr_list->GetList().begin(); 
          instr_it != instr_list->GetList().end(); instr_it++) {
-
-      if (typeid(**instr_it) == typeid(assem::MoveInstr)) {
+      assem::Instr *instr = *instr_it;
+      if (typeid(*instr) == typeid(assem::MoveInstr)) {
         assem::MoveInstr *move_instr = static_cast<assem::MoveInstr*>(*instr_it);
         temp::Temp *src_reg = move_instr->src_->GetList().front();
         temp::Temp *dst_reg = move_instr->dst_->GetList().front();

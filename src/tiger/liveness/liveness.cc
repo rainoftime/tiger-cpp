@@ -1,3 +1,16 @@
+/**
+ * @file liveness.cc
+ * @brief Implementation of liveness analysis and interference graph construction
+ * 
+ * Implements the iterative dataflow algorithm for liveness analysis:
+ * - Live-in[n] = Use[n] ∪ (Live-out[n] - Def[n])
+ * - Live-out[n] = ∪(Live-in[s] for all successors s of n)
+ * 
+ * The interference graph is built by adding edges between temporaries that
+ * are both live at the same point. Move instructions are tracked separately
+ * for potential coalescing during register allocation.
+ */
+
 #include "tiger/liveness/liveness.h"
 
 #include <iostream>
@@ -140,7 +153,10 @@ LiveGraphFactory::LiveGraphFactory()
     in_(std::make_unique<graph::Table<assem::Instr, temp::TempList>>()),
     out_(std::make_unique<graph::Table<assem::Instr, temp::TempList>>()),
     temp_node_map_(new tab::Table<temp::Temp, INode>()),
-    node_instr_map_(std::make_shared<NodeInstrMap>()) {}
+    node_instr_map_(std::make_shared<NodeInstrMap>()) {
+  // Initialize interference graph with precolored registers (machine registers)
+  // These are never spilled and have infinite degree
+}
 
 bool MoveList::Contain(INodePtr src, INodePtr dst) {
   return std::any_of(move_list_.cbegin(), move_list_.cend(),
@@ -190,34 +206,38 @@ MoveList *MoveList::Diff(MoveList *list) {
 }
 
 void LiveGraphFactory::LiveMap(fg::FGraphPtr flowgraph) {
-
+  // Initialize live-in and live-out sets to empty for all nodes
   for (fg::FNode *fnode : flowgraph->Nodes()->GetList()) {
     in_.get()->Enter(fnode, new temp::TempList());
     out_.get()->Enter(fnode, new temp::TempList());
   }
 
+  // Iterative dataflow analysis: iterate until fixed point
   int finished = 0;
   int i = 0;
 
   while (finished != flowgraph->nodecount_) {
-
     finished = 0;
 
+    // Process nodes in reverse order (backward dataflow)
     for (auto fnode_it = flowgraph->Nodes()->GetList().rbegin();
          fnode_it != flowgraph->Nodes()->GetList().rend(); fnode_it++) {
-          // Compute out 
+          // Live-out[n] = ∪(Live-in[s] for all successors s)
           temp::TempList *out_n = new temp::TempList();
           for (fg::FNode *succ_fnode : (*fnode_it)->Succ()->GetList())
             out_n = out_n->Union(in_.get()->Look(succ_fnode));
 
-          // Compute in
+          // Live-in[n] = Use[n] ∪ (Live-out[n] - Def[n])
+          // A temp is live-in if it's used here, or live-out and not redefined here
           temp::TempList *in_n = (*fnode_it)->NodeInfo()->Use();
           in_n = in_n->Union(out_n->Diff((*fnode_it)->NodeInfo()->Def()));
 
+          // Check if we've reached fixed point for this node
           if (out_n->IdentitalTo(out_.get()->Look(*fnode_it)) 
               && in_n->IdentitalTo(in_.get()->Look(*fnode_it))) {
             finished++;
           } else {
+            // Update sets and continue iterating
             out_.get()->Enter((*fnode_it), out_n);
             in_.get()->Enter(*fnode_it, in_n);
           }
@@ -226,15 +246,18 @@ void LiveGraphFactory::LiveMap(fg::FGraphPtr flowgraph) {
 }
 
 void LiveGraphFactory::InterfGraph(fg::FGraphPtr flowgraph, MoveList **worklist_moves) {
-
+  // Build interference graph by processing instructions in forward order
   for (fg::FNode *fnode : flowgraph->Nodes()->GetList()) {
     assem::Instr *instr = fnode->NodeInfo();
-    temp::TempList *live = out_.get()->Look(fnode);
+    temp::TempList *live = out_.get()->Look(fnode);  // Start with live-out set
 
+    // Special handling for move instructions (for coalescing)
     if (typeid(*instr) == typeid(assem::MoveInstr)) {  // move instruction
       assert(instr->Def()->GetList().size() == 1);
       assert(instr->Use()->GetList().size() == 1);
 
+      // For move instructions, source and destination don't interfere
+      // (they can potentially share a register via coalescing)
       live = live->Diff(instr->Use());
 
       temp::Temp *def_reg = instr->Def()->GetList().front();
@@ -243,6 +266,7 @@ void LiveGraphFactory::InterfGraph(fg::FGraphPtr flowgraph, MoveList **worklist_
       INode *use_n = temp_node_map_->Look(use_reg);
       MoveList *single_move = new MoveList(Move(use_n, def_n));
 
+      // Track this move for both source and destination nodes
       temp::TempList *defs_and_uses = instr->Def()->Union(instr->Use());
       for (temp::Temp *reg : defs_and_uses->GetList()) {
         INode *n = temp_node_map_->Look(reg);
@@ -250,12 +274,15 @@ void LiveGraphFactory::InterfGraph(fg::FGraphPtr flowgraph, MoveList **worklist_
         live_graph_.move_list->Set(n, new_moves);
       }
 
+      // Add to worklist for coalescing
       *worklist_moves = (*worklist_moves)->Union(single_move);
     }
 
+    // Add defined temporaries to live set
     live = live->Union(instr->Def());
 
-    // Add inteference edges
+    // Add interference edges: all defined temps interfere with all live temps
+    // (they can't share registers because they're both live at this point)
     temp::TempList *defs = instr->Def();
     for (temp::Temp *def_reg : defs->GetList()) {
       INode *def_n = temp_node_map_->Look(def_reg);
@@ -265,18 +292,21 @@ void LiveGraphFactory::InterfGraph(fg::FGraphPtr flowgraph, MoveList **worklist_
       }
     }
 
+    // Update live set: add uses, remove defs (defs kill previous values)
     live = instr->Use()->Union(live->Diff(instr->Def())); 
   }
 }
 
 void LiveGraphFactory::Liveness(fg::FGraphPtr flowgraph, MoveList **worklist_moves) {
+  // Step 1: Compute liveness information (live-in and live-out sets)
   LiveMap(flowgraph);
+  // Step 2: Build interference graph from liveness information
   InterfGraph(flowgraph, worklist_moves);
 }
 
 void LiveGraphFactory::BuildIGraph(assem::InstrList *instr_list) {
-  // Add precolored registers as nodes to interference graph
-  // Precolored registers will never be spilled
+  // Step 1: Add precolored registers (machine registers) as nodes
+  // Precolored registers are never spilled and have infinite degree
   for (temp::Temp *reg : reg_manager->Registers()->GetList()) {
     if (temp_node_map_->Look(reg) == nullptr) {
       INode *n = live_graph_.interf_graph->NewNode(reg);
@@ -287,18 +317,21 @@ void LiveGraphFactory::BuildIGraph(assem::InstrList *instr_list) {
     }
   }
 
-  // Add temporaries as nodes to interference graph
+  // Step 2: Add temporaries (variables) as nodes to interference graph
+  // Track which instructions use each temporary
   for (auto instr_it = instr_list->GetList().cbegin();
         instr_it != instr_list->GetList().cend(); instr_it++) {
     INode *n;
     temp::TempList *defs_and_uses = (*instr_it)->Def()->Union((*instr_it)->Use());
     for (temp::Temp *reg : defs_and_uses->GetList()) {
       if ((n = temp_node_map_->Look(reg)) == nullptr) {
+        // New temporary: create node
         n = live_graph_.interf_graph->NewNode(reg);
         live_graph_.move_list->Enter(n, new MoveList());
         temp_node_map_->Enter(reg, n); 
         node_instr_map_.get()->insert(std::make_pair(n, new std::vector<InstrPos>{instr_it}));
       } else {
+        // Existing temporary: add instruction to its list
         node_instr_map_.get()->at(n)->push_back(instr_it);
       }
     }

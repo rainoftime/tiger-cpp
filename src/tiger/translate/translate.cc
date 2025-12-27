@@ -186,8 +186,9 @@ tr::ExpAndTy *FieldVar::Translate(env::VEnvPtr venv, env::TEnvPtr tenv,
   tr::ExpAndTy *var_expty = var_->Translate(venv, tenv, level, label, errormsg);
   tree::Exp *var_exp = var_expty->exp_->UnEx();
   type::Ty *var_ty = var_expty->ty_;
+  type::Ty *var_actual_ty = var_ty->ActualTy();
 
-  if (typeid(*var_ty->ActualTy()) != typeid(type::RecordTy)) {
+  if (typeid(*var_actual_ty) != typeid(type::RecordTy)) {
     errormsg->Error(var_->pos_, "not a record type");
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
   }
@@ -216,16 +217,18 @@ tr::ExpAndTy *SubscriptVar::Translate(env::VEnvPtr venv, env::TEnvPtr tenv,
   tr::ExpAndTy *var_expty = var_->Translate(venv, tenv, level, label, errormsg);
   tree::Exp *var_exp = var_expty->exp_->UnEx();
   type::Ty *var_ty = var_expty->ty_;
+  type::Ty *var_actual_ty = var_ty->ActualTy();
 
-  if (typeid(*var_ty->ActualTy()) != typeid(type::ArrayTy)) {
+  if (typeid(*var_actual_ty) != typeid(type::ArrayTy)) {
     errormsg->Error(var_->pos_, "not an array type");
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
   }
 
   tr::ExpAndTy *subscript_expty = subscript_->Translate(venv, tenv, level, label, errormsg);
   tree::Exp *subscript_exp = subscript_expty->exp_->UnEx();
+  type::Ty *subscript_actual_ty = subscript_expty->ty_->ActualTy();
 
-  if (typeid(*subscript_expty->ty_->ActualTy()) != typeid(type::IntTy)) {
+  if (typeid(*subscript_actual_ty) != typeid(type::IntTy)) {
     errormsg->Error(subscript_->pos_, "require integer array subsription");
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
   }
@@ -337,7 +340,8 @@ tr::ExpAndTy *OpExp::Translate(env::VEnvPtr venv, env::TEnvPtr tenv,
   tree::CjumpStm *cjump;
 
   if (left_expty->ty_->IsSameType(right_expty->ty_)) {
-    if (typeid(*left_expty->ty_->ActualTy()) == typeid(type::StringTy)) {
+    type::Ty *left_actual_ty = left_expty->ty_->ActualTy();
+    if (typeid(*left_actual_ty) == typeid(type::StringTy)) {
       tree::ExpList *args = new tree::ExpList({left_exp, right_exp});
       std::string string_equal = "string_equal";
 
@@ -414,7 +418,9 @@ tr::ExpAndTy *RecordExp::Translate(env::VEnvPtr venv, env::TEnvPtr tenv,
   if (!ty) {
     errormsg->Error(pos_, "undefined type %s", typ_->Name().data());
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
-  } else if (typeid(*ty->ActualTy()) != typeid(type::RecordTy)) {
+  }
+  type::Ty *ty_actual_ty = ty->ActualTy();
+  if (typeid(*ty_actual_ty) != typeid(type::RecordTy)) {
     errormsg->Error(pos_, "type %s is not a record", typ_->Name().data());
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
   }
@@ -692,14 +698,17 @@ tr::ExpAndTy *ArrayExp::Translate(env::VEnvPtr venv, env::TEnvPtr tenv,
   if (!ty) {
     errormsg->Error(pos_, "undefined type %s", typ_->Name().data());
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
-  } else if (typeid(*ty->ActualTy()) != typeid(type::ArrayTy)) {
+  }
+  type::Ty *ty_actual_ty = ty->ActualTy();
+  if (typeid(*ty_actual_ty) != typeid(type::ArrayTy)) {
     errormsg->Error(pos_, "type %s is not an array", typ_->Name().data());
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
   }
 
   type::ArrayTy *arr_ty = static_cast<type::ArrayTy *>(ty->ActualTy());
   tr::ExpAndTy *size_expty = size_->Translate(venv, tenv, level, label, errormsg);
-  if (typeid(*size_expty->ty_->ActualTy()) != typeid(type::IntTy)) {
+  type::Ty *size_actual_ty = size_expty->ty_->ActualTy();
+  if (typeid(*size_actual_ty) != typeid(type::IntTy)) {
     errormsg->Error(size_->pos_, "integer required for array size");
     return new tr::ExpAndTy(new tr::ExExp(new tree::ConstExp(0)), type::VoidTy::Instance());
   }
