@@ -1,7 +1,7 @@
 #include "tiger/escape/escape.h"
 #include "tiger/absyn/absyn.h"
 
-#include <iostream>
+//#include <iostream>
 
 namespace esc {
 void EscFinder::FindEscape() { absyn_tree_->Traverse(env_.get()); }

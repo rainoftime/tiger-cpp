@@ -1,6 +1,6 @@
 #include <cstdio>
-#include <fstream>
-#include <iostream>
+//#include <fstream>
+//#include <iostream>
 
 #include "tiger/absyn/absyn.h"
 #include "tiger/errormsg/errormsg.h"

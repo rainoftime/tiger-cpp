@@ -13,7 +13,7 @@
 
 #include "tiger/liveness/liveness.h"
 
-#include <iostream>
+//#include <iostream>
 #include <limits>
 
 extern frame::RegManager *reg_manager;

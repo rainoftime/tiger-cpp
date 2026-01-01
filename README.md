@@ -2,6 +2,8 @@
 
 A complete C++ implementation of a compiler for the Tiger programming language, built for educational purposes following Andrew W. Appel's compiler textbook.
 
+Docs: [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/rainoftime/tiger-cpp)
+
 ## What is Tiger?
 
 Tiger is a simple, statically-typed programming language with:
