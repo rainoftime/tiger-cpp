@@ -1,10 +1,13 @@
 tests
+.codex
+.claude
 .cache
 .clangd
 .vscode
 .cursorrules
 .cursorignore
 .cursor
+*.s
 venv
 compile_commands.json
 *.bc

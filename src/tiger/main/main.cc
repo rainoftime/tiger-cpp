@@ -1,3 +1,28 @@
+/**
+ * @file main.cc
+ * @brief Tiger compiler driver
+ *
+ * This is the top-level entry point for the Tiger compiler.  It drives
+ * the complete compilation pipeline from source file to x86-64 assembly:
+ *
+ *   1. Parse          – lex + parse the .tig source file into an AST
+ *   2. Semantic analysis – type-check and scope-check the AST
+ *   3. Escape analysis  – determine which variables must live in the frame
+ *   4. IR translation   – translate the AST to IR tree fragments
+ *   5. Assembly output  – canonicalize, select instructions, allocate
+ *                         registers, and write the .tig.s output file
+ *
+ * Global state:
+ *   reg_manager – the x86-64 register manager (singleton)
+ *   frags       – the global list of compiled fragments (ProcFrag/StringFrag)
+ *
+ * Usage:
+ *   tiger-compiler <file.tig>
+ *
+ * Output:
+ *   <file.tig>.s  – x86-64 assembly (System V AMD64 ABI)
+ */
+
 #include "tiger/absyn/absyn.h"
 #include "tiger/escape/escape.h"
 #include "tiger/frame/x64frame.h"
@@ -7,7 +32,9 @@
 #include "tiger/translate/translate.h"
 #include "tiger/semant/semant.h"
 
+/** @brief Global x86-64 register manager (initialised in main) */
 frame::RegManager *reg_manager;
+/** @brief Global list of compiled fragments (ProcFrag and StringFrag) */
 frame::Frags *frags;
 
 int main(int argc, char **argv) {

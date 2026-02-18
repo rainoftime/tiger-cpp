@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Tiger Compiler Regression Testing Script
-# Usage: ./regression.sh [lex|parse|semant|translate|compiler|--help]
+# Usage: ./regression.sh [lex|parse|semant|translate|compiler|all|--help]
 
-set -e
+# Note: we intentionally do NOT use 'set -e' here so that individual test
+# failures are counted and reported rather than aborting the whole run.
 
 WORKDIR=$(dirname "$(readlink -f "$0")")
 BUILD_DIR="$WORKDIR/build"
@@ -51,6 +52,17 @@ run_test() {
     
     # Semantic analysis: check error message content only
     if [[ "$target" == "test_semant" && -f "$ref_output" ]]; then
+        # If the reference file is empty, the program should compile without errors
+        if [[ ! -s "$ref_output" ]]; then
+            if [[ ! -s "$TEMP_OUTPUT" ]]; then
+                log_success "$testcase_name"
+                PASSED_TESTS=$((PASSED_TESTS + 1)); return 0
+            else
+                log_error "$testcase_name - unexpected error output"
+                FAILED_TESTS=$((FAILED_TESTS + 1)); return 1
+            fi
+        fi
+        # Non-empty ref: extract the error message (3rd colon-separated field) and check
         awk -F: '{print $3}' "$ref_output" > "$TEMP_REF"
         if grep -Fof "$TEMP_REF" "$TEMP_OUTPUT" > /dev/null; then
             log_success "$testcase_name"
@@ -145,14 +157,16 @@ usage() {
 Usage: $0 [OPTIONS] [TARGETS]
 
 TARGETS:
+  all         Run all test suites (default when no arguments given)
   lex         Test lexical analysis (lab2)
-  parse       Test parsing (lab3)  
+  parse       Test parsing (lab3)
   semant      Test semantic analysis (lab4)
   translate   Test translation (lab5 part1)
   compiler    Test final compiler (lab6)
-  
+
 Examples:
-  $0                    # Run all tests
+  $0                    # Run all tests (same as: $0 all)
+  $0 all                # Run all tests explicitly
   $0 lex parse          # Run specific tests
 EOF
 }
@@ -160,14 +174,16 @@ EOF
 # Main function
 main() {
     [[ "$1" == "--help" || "$1" == "-h" ]] && { usage; exit 0; }
-    
-    local targets=("${@:-lex parse semant translate compiler}")
-    
+
+    # Default to "all" when no arguments are given
+    local targets=("${@:-all}")
+
     log "Starting Tiger Compiler Regression Tests"
     rm -f "$TEMP_OUTPUT" "$TEMP_REF"
-    
+
     for target in "${targets[@]}"; do
         case $target in
+            all) test_lex; test_parse; test_semant; test_translate; test_compiler ;;
             lex) test_lex ;;
             parse) test_parse ;;
             semant) test_semant ;;
@@ -176,7 +192,7 @@ main() {
             *) log_error "Unknown target: $target"; usage; exit 1 ;;
         esac
     done
-    
+
     rm -f "$TEMP_OUTPUT" "$TEMP_REF" "${TEMP_REF}.norm" "${TEMP_OUTPUT}.norm"
     print_summary
 }

@@ -1,3 +1,21 @@
+/**
+ * @file codegen.cc
+ * @brief x86-64 instruction selection implementation (maximal munch)
+ *
+ * This file implements the Munch() methods for all IR tree nodes.
+ * Each method pattern-matches the IR tree and emits the corresponding
+ * x86-64 assembly instructions into the instruction list.
+ *
+ * The maximal munch algorithm greedily selects the largest matching
+ * instruction pattern at each node, minimising the number of instructions.
+ *
+ * Assembly string format:
+ *   `s0, `s1, ... – source (Use) temporaries
+ *   `d0, `d1, ... – destination (Def) temporaries
+ *
+ * All instructions use AT&T syntax (src, dst operand order).
+ */
+
 #include "tiger/codegen/codegen.h"
 
 //#include <cassert>
@@ -9,8 +27,8 @@ extern frame::RegManager *reg_manager;
 namespace {
 
 constexpr int maxlen = 1024;
+/** @brief Machine word size in bytes (x86-64) */
 constexpr int wordsize = 8;
-
 
 } // namespace
 
@@ -19,11 +37,13 @@ namespace cg {
 void CodeGen::Codegen() {
   tree::StmList *stm_list = traces_.get()->GetStmList();
   assem::InstrList *instr_list = new assem::InstrList();
+
+  // Translate each IR statement into assembly instructions via maximal munch
   for (auto stm : stm_list->GetList())
     stm->Munch(*instr_list, fs_);
-    
-  // Pseudo instruction regarding return sink should be appended here
-  // to inform the compiler of the sinking registers.
+
+  // Append a return-sink pseudo-instruction to keep callee-saved registers
+  // and %rax live at the end of the function (required for liveness analysis)
   instr_list = frame::ProcEntryExit2(instr_list);
   assem_instr_ = std::make_unique<AssemInstr>(instr_list);
 }

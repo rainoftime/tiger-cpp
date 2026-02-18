@@ -1,3 +1,28 @@
+/**
+ * @file output.cc
+ * @brief Assembly output generation and per-fragment back-end pipeline
+ *
+ * This file implements the final compilation phases for each fragment:
+ *
+ * For ProcFrag (function bodies):
+ *   1. Canonicalize the IR tree (Linearize → BasicBlocks → TraceSchedule)
+ *   2. Generate abstract assembly via maximal-munch instruction selection
+ *   3. Optionally perform register allocation (iterated register coalescing)
+ *   4. Generate prologue/epilogue via ProcEntryExit3
+ *   5. Write the complete function assembly to the output file
+ *
+ * For StringFrag (string literals):
+ *   - Write label + length word + string content to .rodata section
+ *
+ * Output file format (x86-64 ELF):
+ *   .text section:   function bodies
+ *   .rodata section: string literals (length-prefixed)
+ *
+ * String layout in memory:
+ *   [4-byte length][character data...]
+ * This allows O(1) string length queries by the runtime library.
+ */
+
 #include "tiger/output/output.h"
 
 #include <cstdio>
@@ -8,16 +33,17 @@ extern frame::RegManager *reg_manager;
 extern frame::Frags *frags;
 
 namespace output {
+
 void AssemGen::GenAssem(bool need_ra) {
   frame::Frag::OutputPhase phase;
 
-  // Output proc
+  // Emit all procedure (function body) fragments into the .text section
   phase = frame::Frag::Proc;
   fprintf(out_, ".text\n");
   for (auto &&frag : frags->GetList())
     frag->OutputAssem(out_, phase, need_ra);
 
-  // Output string
+  // Emit all string literal fragments into the .rodata section
   phase = frame::Frag::String;
   fprintf(out_, ".section .rodata\n");
   for (auto &&frag : frags->GetList())
