@@ -51,7 +51,11 @@ void IGraph::AddEdge(Node<temp::Temp> *from, Node<temp::Temp> *to) {
     adj_set_.emplace(from, to);
     adj_set_.emplace(to, from);
 
-    // Add to adjacent list
+    // The interference graph is conceptually undirected. We still reuse the
+    // generic Graph node representation, so `succs_`/`preds_` act as the two
+    // halves of the undirected adjacency relation. Precolored nodes keep their
+    // conceptual infinite degree and therefore are not added to the mutable
+    // degree-tracked side of these lists.
     if (!precolored_->Contain(from->NodeInfo())) {
       live::INodeList *single_to = new live::INodeList(to);
       from->succs_ = from->succs_->Union(single_to);
@@ -256,8 +260,9 @@ void LiveGraphFactory::InterfGraph(fg::FGraphPtr flowgraph, MoveList **worklist_
       assert(instr->Def()->GetList().size() == 1);
       assert(instr->Use()->GetList().size() == 1);
 
-      // For move instructions, source and destination don't interfere
-      // (they can potentially share a register via coalescing)
+      // Appel's move rule removes the move source from the live set before
+      // adding interference edges. That preserves the opportunity to color the
+      // move source and destination with the same physical register later.
       live = live->Diff(instr->Use());
 
       temp::Temp *def_reg = instr->Def()->GetList().front();
@@ -278,7 +283,9 @@ void LiveGraphFactory::InterfGraph(fg::FGraphPtr flowgraph, MoveList **worklist_
       *worklist_moves = (*worklist_moves)->Union(single_move);
     }
 
-    // Add defined temporaries to live set
+    // Add defined temporaries before creating edges so each definition
+    // interferes with every value live after the instruction. Self-edges are
+    // harmlessly ignored by AddEdge().
     live = live->Union(instr->Def());
 
     // Add interference edges: all defined temps interfere with all live temps
@@ -317,8 +324,9 @@ void LiveGraphFactory::BuildIGraph(assem::InstrList *instr_list) {
     }
   }
 
-  // Step 2: Add temporaries (variables) as nodes to interference graph
-  // Track which instructions use each temporary
+  // Step 2: Add virtual temps as nodes and remember the instruction sites
+  // that mention them. `node_instr_map_` is later reused by spill rewriting to
+  // patch precisely the instructions that use/define a spilled temp.
   for (auto instr_it = instr_list->GetList().cbegin();
         instr_it != instr_list->GetList().cend(); instr_it++) {
     INode *n;

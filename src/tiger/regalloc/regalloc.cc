@@ -768,6 +768,9 @@ live::INode *RegAllocator::HeuristicSelect() {
     int start = 0;
     int distance = -1;
     for (assem::Instr *instr : instr_list->GetList()) {
+      // Track the most recent definition and measure how far away the next use
+      // occurs. Larger gaps make spilling cheaper because a single reload can
+      // often cover a long dead region.
       if (instr->Def()->Contain(n->NodeInfo())) {
         start = pos;  // record position of last definition
       }
@@ -890,6 +893,8 @@ void RegAllocator::RewriteProgram() {
       std::stringstream instr_ss;
       auto instr_pos = *instr_it;
       assem::Instr *instr = *instr_pos;
+      // The instruction list is a std::list, so inserting loads/stores around
+      // `instr_pos` does not invalidate the iterator stored in node_instr_map_.
 
       // Create a fresh temporary for this use/def site
       // (each site gets its own t_new to keep live ranges short)

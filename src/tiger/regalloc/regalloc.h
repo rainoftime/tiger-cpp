@@ -324,8 +324,10 @@ private:
   /**
    * @brief Heuristic for choosing which node to spill
    *
-   * Selects the node with the highest degree (most interference).
-   * More sophisticated heuristics could consider loop nesting depth.
+   * Selects the node whose observed def-to-next-use distance is largest,
+   * with an immediate preference for temps that are defined but never used.
+   * This is a simple approximation of spill cost rather than a pure
+   * degree-based policy.
    *
    * @return The node selected for potential spilling
    */

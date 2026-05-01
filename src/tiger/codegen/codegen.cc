@@ -56,6 +56,18 @@ void AssemInstr::Print(FILE *out, temp::Map *map) const {
 } // namespace cg
 
 namespace tree {
+/**
+ * Normalize a MEM expression into the addressing form expected by x86-64
+ * load/store instructions.
+ *
+ * The helper recognizes the common base+constant pattern and emits the textual
+ * address fragment together with the temp list that must be recorded as Uses.
+ * The `ordinal` parameter tells the caller which source slot in the enclosing
+ * instruction should correspond to the base register (`s0`, `s1`, ...).
+ *
+ * If the IR memory expression is not a direct base+constant form, we first
+ * materialize the address into a temp and then use the generic `(`sN)` form.
+ */
 static assem::MemFetch *MunchMem(tree::Exp* mem_exp, int ordinal, 
                                  assem::InstrList &instr_list, std::string_view fs) {
   tree::Exp *exp = static_cast<tree::MemExp *>(mem_exp)->exp_;
@@ -110,8 +122,9 @@ void JumpStm::Munch(assem::InstrList &instr_list, std::string_view fs) {
 }
 
 void CjumpStm::Munch(assem::InstrList &instr_list, std::string_view fs) {
-  /* No two immediates appear at the same time. The immediate is always
-     the first operand for cmpq. */
+  /* `cmpq` in AT&T syntax is "cmp source, dest" and conceptually compares
+     dest - source. We therefore emit `cmpq rhs, lhs` so the jump mnemonic
+     still corresponds to the original IR predicate `lhs op rhs`. */
   std::stringstream instr_ss;
 
   if (typeid(*right_) == typeid(tree::ConstExp)) {
@@ -155,6 +168,8 @@ void MoveStm::Munch(assem::InstrList &instr_list, std::string_view fs) {
   std::stringstream instr_ss;
 
   if (typeid(*dst_) == typeid(tree::MemExp)) {  // movq r, M
+    // x86-64 does not support a generic memory-to-memory move here, so the
+    // source is always materialized into a temp before we compute the store.
     temp::Temp *src_reg = src_->Munch(instr_list, fs);
     assem::MemFetch *fetch = MunchMem(dst_, 1, instr_list, fs);
     instr_ss << "movq `s0, " << fetch->fetch_;
@@ -222,6 +237,9 @@ temp::Temp *BinopExp::Munch(assem::InstrList &instr_list, std::string_view fs) {
     temp::Temp *left_reg = left_->Munch(instr_list, fs);
     temp::Temp* res_reg = temp::TempFactory::NewTemp();
 
+    // x86 arithmetic is destructive on the destination operand. Copy the left
+    // operand first so the IR value model stays "expression returns a fresh
+    // temp" instead of mutating an existing one in place.
     instr_list.Append(new assem::MoveInstr("movq `s0, `d0", 
                         new temp::TempList(res_reg),
                         new temp::TempList(left_reg)));
@@ -257,7 +275,10 @@ temp::Temp *BinopExp::Munch(assem::InstrList &instr_list, std::string_view fs) {
     temp::Temp *rax_saver = temp::TempFactory::NewTemp();
     temp::Temp *rdx_saver = temp::TempFactory::NewTemp();
 
-    // Save %rax and %rdx
+    // `imulq`/`idivq` have fixed register conventions: `%rax` carries the
+    // primary operand/result and `%rdx` holds the high half / remainder.
+    // We save both machine registers into fresh temps so surrounding code can
+    // still treat them like ordinary values before register allocation.
     instr_list.Append(new assem::MoveInstr("movq `s0, `d0", 
                         new temp::TempList(rax_saver), 
                         new temp::TempList(rax)));
@@ -290,6 +311,8 @@ temp::Temp *BinopExp::Munch(assem::InstrList &instr_list, std::string_view fs) {
     instr_ss.str("");
 
     if (op_ == DIV_OP)
+      // Signed division consumes the 128-bit dividend in `%rdx:%rax`, so we
+      // explicitly sign-extend `%rax` into `%rdx` before issuing `idivq`.
       instr_list.Append(new assem::OperInstr("cqto", 
                           new temp::TempList({rdx, rax, rax_saver, rdx_saver}),
                           new temp::TempList(rax),
@@ -373,6 +396,9 @@ temp::Temp *CallExp::Munch(assem::InstrList &instr_list, std::string_view fs) {
   if (typeid(*fun_) != typeid(tree::NameExp))  // error
     return rax; 
 
+  // `MunchArgs` performs the System V marshaling (arg registers first, then
+  // stack slots) and returns the machine locations that the call should record
+  // as Uses for liveness.
   temp::TempList *arg_list = args_->MunchArgs(instr_list, fs);
   temp::TempList *calldefs = reg_manager->CallerSaves();
   calldefs->Append(reg_manager->ReturnValue());
@@ -407,6 +433,8 @@ temp::TempList *ExpList::MunchArgs(assem::InstrList &instr_list, std::string_vie
       arg_list->Append(dst_reg);
 
     } else {  // the first one goes to (%rsp)
+      // Extra arguments are written into the outgoing-argument area that the
+      // frame layer reserved below `%rsp` before the call sequence.
       if (typeid(*arg) == typeid(tree::ConstExp)) {
         tree::ConstExp *const_exp = static_cast<tree::ConstExp *>(arg);
         instr_ss << "movq $" << const_exp->consti_ << ", ";
@@ -433,6 +461,8 @@ temp::TempList *ExpList::MunchArgs(assem::InstrList &instr_list, std::string_vie
     ++i;
   }
 
+  // If any stack arguments were emitted, model `%rsp` as a call use as well:
+  // the call depends on the outgoing argument area staying intact.
   if (i > arg_reg_count)
     arg_list->Append(reg_manager->StackPointer());
 

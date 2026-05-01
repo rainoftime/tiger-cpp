@@ -2,7 +2,11 @@
 
 namespace tree {
 /**
- * Gets rid of the top-level SEQ's, producing a list
+ * Flatten a canonical statement tree into a linear statement list.
+ *
+ * After Canon() has eliminated ESEQ nodes and normalized side effects, the
+ * only remaining structural node that matters here is SEQ. Linear() erases
+ * that tree shape and preserves left-to-right execution order in a StmList.
  * @param stm current statement
  */
 void StmList::Linear(tree::Stm *stm) {
@@ -32,6 +36,8 @@ Stm *Stm::Seq(tree::Stm *x, tree::Stm *y) {
 }
 
 bool Stm::Commute(tree::Stm *x, tree::Exp *y) {
+  // It is safe to reorder y after x only when x has no side effects or when y
+  // is already a trivially reorderable value (constant / symbolic address).
   if (x->IsNop())
     return true;
   if (typeid(*y) == typeid(tree::NameExp) ||
@@ -66,6 +72,9 @@ struct ExpRefList {
     } else {
       tree::Exp *&ref = refs.front().get();
       if (typeid(*ref) == typeid(tree::CallExp)) {
+        // Calls are never left nested inside larger expressions. We first
+        // force the call result into a fresh TEMP so later reordering can treat
+        // the call like an ordinary side-effect-free operand.
         temp::Temp *t = temp::TempFactory::NewTemp();
         ref = new tree::EseqExp(new tree::MoveStm(new tree::TempExp(t), ref),
                                 new tree::TempExp(t));
@@ -75,9 +84,14 @@ struct ExpRefList {
         refs.pop_front();
         tree::Stm *s = Reorder();
         if (tree::Stm::Commute(s, hd.e_)) {
+          // Safe case: the already-reordered tail does not constrain where hd.e_
+          // appears, so we can keep the expression in place and just sequence
+          // the side effects.
           ref = hd.e_;
           return tree::Stm::Seq(hd.s_, s);
         } else {
+          // Unsafe case: preserve evaluation order by saving hd.e_ into a TEMP
+          // before executing the reordered tail.
           temp::Temp *t = temp::TempFactory::NewTemp();
           ref = new tree::TempExp(t);
           return tree::Stm::Seq(
@@ -107,18 +121,24 @@ void Canon::Trace(std::list<tree::Stm *> &stms) {
 
   auto lab = dynamic_cast<tree::LabelStm *>(stms.front());
   assert(lab);
+  // Mark this block as consumed so GetNext() / later trace steps will not
+  // schedule it a second time.
   block_env_->Enter(lab->label_, nullptr);
 
   if (typeid(*last) == typeid(tree::JumpStm)) {
     auto jumpstm = static_cast<tree::JumpStm *>(last);
     auto target = block_env_->Look(jumpstm->jumps_->front());
     if (target) {
+      // Target block is still available: concatenate it immediately and drop
+      // the now-redundant unconditional jump.
       Trace(target->stm_list_);
       stms.pop_back();
       stms.insert(
           stms.end(), target->stm_list_.begin(),
           target->stm_list_.end()); // merge the 2 lists removing JUMP stm_
     } else {
+      // Target already traced or synthetic exit path: keep the jump and pick
+      // the next available block to continue layout.
       auto insert = GetNext()->stm_list_;
       stms.insert(stms.end(), insert.begin(),
                   insert.end()); // merge and keep JUMP stm_
@@ -129,10 +149,14 @@ void Canon::Trace(std::list<tree::Stm *> &stms) {
     auto truelist = block_env_->Look(cjumpstm->true_label_);
     auto falselist = block_env_->Look(cjumpstm->false_label_);
     if (falselist) {
+      // Best case: the existing false successor can be placed immediately
+      // after the branch, so the false edge becomes a fall-through.
       Trace(falselist->stm_list_);
       stms.insert(stms.end(), falselist->stm_list_.begin(),
                   falselist->stm_list_.end());
     } else if (truelist) { // convert so that existing label_ is a false label_
+      // If only the true successor is available, negate the relation so that
+      // the available block becomes the false fall-through edge instead.
       stms.pop_back();
       stms.push_back(new tree::CjumpStm(
           tree::NotRel(cjumpstm->op_), cjumpstm->left_, cjumpstm->right_,
@@ -142,6 +166,9 @@ void Canon::Trace(std::list<tree::Stm *> &stms) {
       stms.insert(stms.end(), truelist->stm_list_.begin(),
                   truelist->stm_list_.end());
     } else {
+      // Neither successor can be laid out next. Synthesize a fresh false label
+      // and an explicit jump to the original false target to preserve the
+      // "CJUMP is followed by its false label" canonical invariant.
       temp::Label *falselabel = temp::LabelFactory::NewLabel();
       stms.pop_back();
       std::list<tree::Stm *> tmp_stm_list = {
@@ -161,6 +188,8 @@ void Canon::Trace(std::list<tree::Stm *> &stms) {
 
 tree::StmList *Canon::GetNext() {
   if (block_.stm_lists_->stmlist_list_.empty()) {
+    // Trace scheduling always ends with a final synthetic label so the last
+    // block still has a concrete successor anchor.
     auto *last_stm_list = new tree::StmList();
     last_stm_list->stm_list_.push_back(new tree::LabelStm(block_.label_));
     return last_stm_list;
@@ -172,6 +201,8 @@ tree::StmList *Canon::GetNext() {
       Trace(s->stm_list_);
       return s;
     } else {
+      // Already traced: discard it from the pending block list and keep
+      // searching for the next unconsumed block.
       block_.stm_lists_->stmlist_list_.pop_front();
       return GetNext();
     }
@@ -195,6 +226,8 @@ canon::StmListList *Canon::BasicBlocks() {
     // at the beginning of bb, supposed to create a label_
     if (start) {
       if (typeid(*stm) != typeid(tree::LabelStm)) {
+        // Every basic block must have a unique entry label, even if the
+        // linearized statement stream did not begin with one.
         cur_list->stm_list_.push_front(
             new tree::LabelStm(temp::LabelFactory::NewLabel()));
       }
@@ -211,6 +244,9 @@ canon::StmListList *Canon::BasicBlocks() {
       continue;
     } else if (typeid(*stm) == typeid(tree::LabelStm) && !start) {
       // meet label_ stm_, should terminate this bb and jump to current label_
+      // A label in the middle of a block becomes the entry of the next block,
+      // so we insert an explicit jump from the current block to preserve
+      // single-entry basic block structure.
       cur_list->stm_list_.insert(cur_list->stm_list_.end(), left, right);
       left = right;
       auto label = static_cast<tree::LabelStm *>(stm)->label_;
@@ -235,6 +271,8 @@ tree::StmList *Canon::TraceSchedule() {
   for (auto stm_list : block_.stm_lists_->stmlist_list_) {
     auto lab = dynamic_cast<tree::LabelStm *>(stm_list->stm_list_.front());
     assert(lab);
+    // block_env_ doubles as both a label->block lookup table and a traced-set:
+    // a null entry means the block has already been scheduled into some trace.
     block_env_->Enter(lab->label_, stm_list);
   }
 
@@ -263,15 +301,20 @@ Stm *CjumpStm::Canon() {
 }
 
 Stm *MoveStm::Canon() {
-  // RefList rlist;
   if (typeid(*dst_) == typeid(TempExp) && typeid(*src_) == typeid(CallExp)) {
+    // MOVE(TEMP t, CALL(...)) is the one CALL parent form that canonical IR
+    // permits, so we only need to reorder the call's function/arguments.
     return tree::Stm::Seq(GetCallRlist(src_)->Reorder(), this);
   } else if (typeid(*(dst_)) == typeid(TempExp)) {
     return tree::Stm::Seq((new ExpRefList(src_))->Reorder(), this);
   } else if (typeid(*(dst_)) == typeid(MemExp)) {
+    // Stores constrain both the address and the stored value, so they must be
+    // reordered together to preserve memory side-effect order.
     auto memexp = static_cast<MemExp *>(dst_);
     return tree::Stm::Seq((ExpRefList(memexp->exp_, src_).Reorder()), this);
   } else if (typeid(*(dst_)) == typeid(EseqExp)) {
+    // Writing through ESEQ(dst_stm, dst_exp) means the destination's side
+    // effects happen before the move itself.
     auto eseqexp = static_cast<EseqExp *>(dst_);
     Stm *s = eseqexp->stm_;
     dst_ = eseqexp->exp_;
@@ -305,6 +348,8 @@ canon::StmAndExp NameExp::Canon() { return {NOP, this}; }
 canon::StmAndExp ConstExp::Canon() { return {NOP, this}; }
 
 canon::StmAndExp CallExp::Canon() {
+  // The call itself remains as the expression result; Reorder() has already
+  // ensured its function expression and arguments are evaluated safely first.
   return {GetCallRlist(this)->Reorder(), this};
 }
 

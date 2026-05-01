@@ -1,4 +1,5 @@
 tests
+tmp
 .codex
 .claude
 .cache
@@ -66,3 +67,12 @@ callgrind.out.*
 dist/*
 docs/build
 /.vs
+.omx/
+.codex/*
+!.codex/agents/
+!.codex/agents/**
+!.codex/skills/
+!.codex/skills/**
+.codex/skills/.system/**
+!.codex/prompts/
+!.codex/prompts/**

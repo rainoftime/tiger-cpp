@@ -31,6 +31,8 @@ Temp *TempFactory::NewTemp() {
   std::stringstream stream;
   stream << 't';
   stream << p->num_;
+  // Name() is the global fallback map used by debug printing and by assembly
+  // pretty-printers before register allocation assigns physical registers.
   Map::Name()->Enter(p, new std::string(stream.str()));
 
   return p;
@@ -43,6 +45,7 @@ Map *Map::Empty() { return new Map(); }
 Map *Map::Name() {
   static Map *m = nullptr;
   if (!m)
+    // This singleton accumulates names for every Temp ever created.
     m = Empty();
   return m;
 }
@@ -51,6 +54,7 @@ Map *Map::LayerMap(Map *over, Map *under) {
   if (over == nullptr)
     return under;
   else
+    // Preserve the full fallback chain of `over` while ending at `under`.
     return new Map(over->tab_, LayerMap(over->under_, under));
 }
 

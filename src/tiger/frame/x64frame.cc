@@ -28,6 +28,8 @@ std::unordered_map<X64RegManager::Register, std::string> X64RegManager::reg_str 
   
 X64RegManager::X64RegManager() {
   for (int i = 0; i < REG_COUNT; ++i) {
+    // Machine registers are represented as distinguished temps up front. Later
+    // passes treat them as precolored nodes in the interference graph.
     temp::Temp *new_reg = temp::TempFactory::NewTemp();
     regs_.push_back(new_reg);
     temp_map_->Enter(new_reg, &reg_str.at(static_cast<Register>(i)));
@@ -37,6 +39,8 @@ X64RegManager::X64RegManager() {
 temp::TempList *X64RegManager::Registers() {
   temp::TempList *temps = new temp::TempList();
   for (int reg = 0; reg < REG_COUNT; ++reg) {
+      // Keep the enumeration order stable: color indices are interpreted by
+      // register allocation using this exact register list.
       temps->Append(regs_.at(reg));
   }
   return temps;
@@ -120,6 +124,9 @@ public:
   
   std::string MunchAccess(Frame *frame) override {
     std::stringstream ss;
+    // Stack slots are addressed relative to the current `%rsp` plus the
+    // assembly-time frame-size constant. This matches FrameAddress() which
+    // models FP as SP + framesize throughout the function body.
     ss << "(" << frame->frame_size_->Name() << "-" << offset << ")("
        << *reg_manager->temp_map_->Look(reg_manager->StackPointer()) << ")";
     return ss.str();
@@ -155,9 +162,13 @@ public:
 Access *X64Frame::AllocLocal(bool escape) {
   Access *access;
   if (escape) {
+    // Escaping locals must survive across nested-function access, so they live
+    // in the frame and consume one fixed-width slot each.
     local_count_++;
     access = new InFrameAccess(local_count_ * word_size_);
   } else {
+    // Non-escaping locals can stay in fresh virtual temps and may disappear
+    // entirely after register allocation.
     access = new InRegAccess(temp::TempFactory::NewTemp());
   }
   local_access_.push_back(access);
@@ -185,9 +196,13 @@ tree::Exp *X64Frame::StackOffset(int frame_offset) const {
 Frame *NewFrame(temp::Label *name, std::vector<bool> formals) {
   Frame* frame = new X64Frame(name);
   int frame_offset = frame->WordSize();
+  // The assembler-level frame-size symbol lets both the prologue and every
+  // stack-slot reference agree on the final frame size without patching IR.
   frame->frame_size_ = temp::LabelFactory::NamedLabel(name->Name() + "_framesize");
 
   tree::TempExp *fp_exp = new tree::TempExp(temp::TempFactory::NewTemp());
+  // Materialize the "virtual frame pointer" once at function entry so view
+  // shift code can address incoming stack arguments consistently.
   frame->view_shift = new tree::MoveStm(fp_exp, frame->FrameAddress());
 
   tree::Exp *dst_exp;
@@ -199,12 +214,16 @@ Frame *NewFrame(temp::Label *name, std::vector<bool> formals) {
 
   if (formals.size() > arg_reg_count) {
     fp_exp_copy = new tree::TempExp(temp::TempFactory::NewTemp());
+    // Extra formals arrive in caller-allocated stack slots above the return
+    // address, so we keep an extra saved FP expression for those loads.
     frame->view_shift = new tree::SeqStm(frame->view_shift, new tree::MoveStm(fp_exp_copy, frame->FrameAddress()));
   }
 
   for (int i = 0; i < formals.size(); ++i) {
     if (formals.at(i)) {  // escape
       frame->formal_access_.push_back(new InFrameAccess(frame_offset));
+      // Escaping formals are copied into this frame's own slots immediately;
+      // nested functions will later reach them through static-link traversal.
       dst_exp = new tree::MemExp(new tree::BinopExp(tree::MINUS_OP, 
                   fp_exp, new tree::ConstExp((i + 1) * frame->WordSize())));
       frame_offset += frame->WordSize();
@@ -216,9 +235,11 @@ Frame *NewFrame(temp::Label *name, std::vector<bool> formals) {
     }
 
     if (i < arg_reg_count) {
+      // Register-passed formal: move from ABI argument register to its home.
       single_view_shift = new tree::MoveStm(dst_exp, new tree::TempExp(reg_manager->ArgRegs()->NthTemp(i)));
     } else {
-      // *fp is return address
+      // Stack-passed formals start one word above the return address, then
+      // continue upward in word-sized slots.
       single_view_shift = new tree::MoveStm(dst_exp, new tree::MemExp(
                             new tree::BinopExp(tree::PLUS_OP, fp_exp_copy, 
                               new tree::ConstExp((i - arg_reg_count + 1) * frame->WordSize()))));
@@ -226,8 +247,9 @@ Frame *NewFrame(temp::Label *name, std::vector<bool> formals) {
     frame->view_shift = new tree::SeqStm(frame->view_shift, single_view_shift);
   }
 
-  // Save and restore callee-save registers 
-  // Now save in temporary registers (spilled by register allocator)
+  // Save and restore callee-save registers in fresh temps. Those temps then
+  // become ordinary values that later passes may either keep in registers or
+  // spill, while preserving the ABI-level save/restore semantics.
 
   temp::TempList *callee_saves = reg_manager->CalleeSaves();
   temp::Temp *store_reg;
@@ -256,7 +278,8 @@ tree::Exp *AccessCurrentExp(Access *acc, Frame *frame) {
   if (typeid(*acc) == typeid(InFrameAccess)) {
     InFrameAccess *frame_acc = static_cast<InFrameAccess *>(acc);
 
-    // access via temporary frame pointer
+    // Recompute the current frame's base address instead of assuming a fixed
+    // hardware frame pointer register.
     return new tree::MemExp(new tree::BinopExp(tree::MINUS_OP, 
             frame->FrameAddress(), new tree::ConstExp(frame_acc->offset)));
 
@@ -268,6 +291,8 @@ tree::Exp *AccessCurrentExp(Access *acc, Frame *frame) {
 
 tree::Exp *AccessExp(Access *acc, tree::Exp *fp) {
   if (typeid(*acc) == typeid(InFrameAccess)) {
+    // `fp` is an explicit frame-pointer expression, usually obtained by
+    // following static links through enclosing activation records.
     InFrameAccess *frame_acc = static_cast<InFrameAccess *>(acc);
     return new tree::MemExp(new tree::BinopExp(tree::MINUS_OP, 
             fp, new tree::ConstExp(frame_acc->offset)));
@@ -283,8 +308,11 @@ tree::Exp *ExternalCall(std::string s, tree::ExpList *args) {
 
 tree::Stm *ProcEntryExit1(Frame *frame, tree::Stm *stm) {
 
-  // Concatenate view shift statements as well as save and restore of callee-save registers to 
-  // function body.
+  // Order matters:
+  //   1. establish the function's view of incoming arguments,
+  //   2. preserve callee-saved registers before user code runs,
+  //   3. execute the body,
+  //   4. restore callee-saved registers just before returning.
   stm = new tree::SeqStm(frame->save_callee_saves, stm);
   stm = new tree::SeqStm(frame->view_shift, stm);
   stm = new tree::SeqStm(stm, frame->restore_callee_saves);
@@ -302,7 +330,8 @@ assem::Proc *ProcEntryExit3(Frame *frame, assem::InstrList *body) {
   std::stringstream prologue_ss;
   std::stringstream epilogue_ss;
 
-  // Calculate and assign to frame size label
+  // Reserve enough space for both escaping locals and the maximum outgoing
+  // stack-argument area needed by any call in the function body.
   int fs = (frame->local_count_ + frame->max_outgoing_args_) * frame->WordSize();
   prologue_ss << ".set " << frame->frame_size_->Name() << ", " << fs << "\n"; 
 

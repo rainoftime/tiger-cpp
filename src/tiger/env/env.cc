@@ -43,6 +43,8 @@ void ProgSem::FillBaseVEnv() {
   type::Ty *result;
   type::TyList *formals;
 
+  // Base environments define the Tiger runtime surface seen by source
+  // programs. Semantic analysis only needs type signatures at this stage.
   venv_->Enter(sym::Symbol::UniqueSymbol("flush"),
                new env::FunEntry(new type::TyList(), type::VoidTy::Instance()));
 
@@ -118,6 +120,10 @@ void ProgTr::FillBaseVEnv() {
 
   temp::Label *label = nullptr;
   tr::Level *level = outermost_level_.get();
+
+  // Builtins live conceptually at the outermost level and have no Tiger body.
+  // A null label marks them as external calls; translation later lowers them
+  // to CALL(NAME(<builtin>), ...) instead of static-link-carrying user calls.
 
   venv_->Enter(sym::Symbol::UniqueSymbol("flush"),
                new env::FunEntry(level, label, new type::TyList(),
