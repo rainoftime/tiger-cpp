@@ -162,7 +162,7 @@ private:
  * @param formals Escape flags for each formal parameter (true = escapes)
  * @return Pointer to the newly allocated Frame
  */
-Frame *NewFrame(temp::Label *name, std::vector<bool> formals);
+Frame *NewX64Frame(temp::Label *name, std::vector<bool> formals);
 
 /**
  * @brief Generate an IR expression to access a variable in the current frame
@@ -175,7 +175,7 @@ Frame *NewFrame(temp::Label *name, std::vector<bool> formals);
  * @param frame The current function's frame (for FP computation)
  * @return IR expression that reads/writes the variable
  */
-tree::Exp *AccessCurrentExp(Access *acc, Frame *frame);
+tree::Exp *AccessCurrentExpX64(Access *acc, Frame *frame);
 
 /**
  * @brief Generate an IR expression to access a variable given an explicit FP
@@ -188,7 +188,7 @@ tree::Exp *AccessCurrentExp(Access *acc, Frame *frame);
  * @param fp  IR expression for the frame pointer of the declaring frame
  * @return IR expression that reads/writes the variable
  */
-tree::Exp *AccessExp(Access *acc, tree::Exp *fp);
+tree::Exp *AccessExpX64(Access *acc, tree::Exp *fp);
 
 /**
  * @brief Generate a CALL IR node for a runtime library function
@@ -201,56 +201,7 @@ tree::Exp *AccessExp(Access *acc, tree::Exp *fp);
  * @param args Argument list (no static link for external calls)
  * @return CALL IR expression
  */
-tree::Exp *ExternalCall(std::string s, tree::ExpList *args);
-
-/**
- * @brief Augment a function body with view shift and callee-save handling
- *
- * Prepends the view-shift IR tree (copy formals to their declared locations)
- * and the callee-save tree, and appends the callee-restore tree to `stm`.
- *
- * Called by tr::ProgTr::Translate() and FunctionDec::Translate() after
- * translating each function body.
- *
- * @param frame The function's activation record
- * @param stm   The translated function body
- * @return Augmented statement: view_shift ; save_callee ; stm ; restore_callee
- */
-tree::Stm *ProcEntryExit1(Frame *frame, tree::Stm *stm);
-
-/**
- * @brief Append a return-sink pseudo-instruction to the instruction list
- *
- * Adds an OperInstr with empty assembly string but with ReturnSink() as
- * its source list.  This keeps the callee-saved registers and %rax live
- * at the end of the function, preventing the register allocator from
- * treating them as dead and reusing them.
- *
- * @param body The instruction list for the function body
- * @return The same instruction list with the pseudo-instruction appended
- */
-assem::InstrList *ProcEntryExit2(assem::InstrList *body);
-
-/**
- * @brief Generate the function prologue and epilogue
- *
- * Produces an assem::Proc containing:
- *   Prologue:
- *     .set <name>_framesize, <fs>   (define the frame-size constant)
- *     <name>:                        (function label)
- *     subq $<fs>, %rsp               (allocate the frame)
- *   Body: the instruction list
- *   Epilogue:
- *     addq $<fs>, %rsp               (deallocate the frame)
- *     retq                           (return)
- *
- * The frame size fs = (local_count_ + max_outgoing_args_) * word_size.
- *
- * @param frame The function's activation record
- * @param body  The instruction list for the function body
- * @return assem::Proc with prologue, body, and epilogue
- */
-assem::Proc *ProcEntryExit3(Frame *frame, assem::InstrList *body);
+assem::Proc *ProcEntryExit3X64(Frame *frame, assem::InstrList *body);
 
 } // namespace frame
 

@@ -1,6 +1,6 @@
 #include "tiger/absyn/absyn.h"
 #include "tiger/escape/escape.h"
-#include "tiger/frame/x64frame.h"
+#include "tiger/frame/target.h"
 #include "tiger/output/logger.h"
 #include "tiger/output/output.h"
 #include "tiger/parse/parser.h"
@@ -13,7 +13,8 @@ frame::Frags *frags;
 int main(int argc, char **argv) {
   std::string_view fname;
   std::unique_ptr<absyn::AbsynTree> absyn_tree;
-  reg_manager = new frame::X64RegManager();
+  frame::SetCurrentTarget(frame::DetectHostTarget());
+  reg_manager = frame::NewRegManagerForTarget(frame::GetCurrentTarget());
   frags = new frame::Frags();
 
   if (argc < 2) {

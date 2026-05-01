@@ -30,8 +30,15 @@ make
 
 ### Usage
 ```bash
-# Compile a Tiger program to x64 assembly
+# Compile a Tiger program to assembly for the host default target
 ./tiger-compiler input.tig
+
+# Explicitly target Apple Silicon and link a runnable binary
+./tiger-compiler --target arm64-apple --emit-binary input.tig
+./input.tig.bin
+
+# Keep the original x64 backend
+./tiger-compiler --target x64 input.tig
 
 # Run individual compiler phases for testing
 ./test_lex input.tig      # Lexical analysis
@@ -75,4 +82,4 @@ Run the regression test suite:
 
 ---
 
-*This project implements a complete compilation pipeline from Tiger source code to executable x64 assembly, demonstrating all major phases of compiler construction.*
+*This project implements a complete compilation pipeline from Tiger source code to executable assembly, including x64 and Apple Silicon arm64 backends, demonstrating all major phases of compiler construction.*

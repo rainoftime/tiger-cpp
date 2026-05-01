@@ -101,6 +101,24 @@ extern frame::RegManager *reg_manager;
 
 namespace ra {
 
+namespace {
+
+bool IsArm64Target() { return frame::IsArm64AppleTarget(); }
+
+temp::TempList *SpillBaseUseList(temp::Temp *extra = nullptr) {
+  if (IsArm64Target()) {
+    if (extra)
+      return new temp::TempList({extra, reg_manager->FramePointer()});
+    return new temp::TempList(reg_manager->FramePointer());
+  }
+
+  if (extra)
+    return new temp::TempList({extra, reg_manager->StackPointer()});
+  return new temp::TempList(reg_manager->StackPointer());
+}
+
+} // namespace
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constructor
 // ─────────────────────────────────────────────────────────────────────────────
@@ -913,11 +931,14 @@ void RegAllocator::RewriteProgram() {
 
         // Insert a fetch instruction BEFORE the current instruction:
         //   movq mem_pos, new_reg
-        instr_ss << "movq " << mem_pos << ", `d0";
+        if (IsArm64Target())
+          instr_ss << "ldur `d0, " << mem_pos;
+        else
+          instr_ss << "movq " << mem_pos << ", `d0";
         assem::Instr *fetch_instr = new assem::OperInstr(
             instr_ss.str(),
             new temp::TempList(new_reg),                    // def: new_reg
-            new temp::TempList(reg_manager->StackPointer()), // use: %rsp
+            SpillBaseUseList(),                              // use: frame base
             nullptr);
         assem_instr_.get()->GetInstrList()->Insert(instr_pos, fetch_instr);
         instr_ss.str("");
@@ -936,11 +957,11 @@ void RegAllocator::RewriteProgram() {
 
         // Insert a store instruction AFTER the current instruction:
         //   movq new_reg, mem_pos
-        instr_ss << "movq `s0, " << mem_pos;
+        instr_ss << (IsArm64Target() ? "stur `s0, " : "movq `s0, ") << mem_pos;
         assem::Instr *store_instr = new assem::OperInstr(
             instr_ss.str(),
             nullptr,                                                    // no def
-            new temp::TempList({new_reg, reg_manager->StackPointer()}), // use: new_reg, %rsp
+            SpillBaseUseList(new_reg),                                  // use: new_reg, frame base
             nullptr);
         assem_instr_.get()->GetInstrList()->Insert(++instr_pos, store_instr);
       }

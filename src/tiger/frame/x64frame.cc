@@ -193,7 +193,7 @@ tree::Exp *X64Frame::StackOffset(int frame_offset) const {
           new tree::NameExp(frame_size_), new tree::ConstExp(frame_offset));
 }
 
-Frame *NewFrame(temp::Label *name, std::vector<bool> formals) {
+Frame *NewX64Frame(temp::Label *name, std::vector<bool> formals) {
   Frame* frame = new X64Frame(name);
   int frame_offset = frame->WordSize();
   // The assembler-level frame-size symbol lets both the prologue and every
@@ -274,7 +274,7 @@ Frame *NewFrame(temp::Label *name, std::vector<bool> formals) {
 }
 
 /* Work iff frame is the current frame */
-tree::Exp *AccessCurrentExp(Access *acc, Frame *frame) {
+tree::Exp *AccessCurrentExpX64(Access *acc, Frame *frame) {
   if (typeid(*acc) == typeid(InFrameAccess)) {
     InFrameAccess *frame_acc = static_cast<InFrameAccess *>(acc);
 
@@ -289,7 +289,7 @@ tree::Exp *AccessCurrentExp(Access *acc, Frame *frame) {
   }
 }
 
-tree::Exp *AccessExp(Access *acc, tree::Exp *fp) {
+tree::Exp *AccessExpX64(Access *acc, tree::Exp *fp) {
   if (typeid(*acc) == typeid(InFrameAccess)) {
     // `fp` is an explicit frame-pointer expression, usually obtained by
     // following static links through enclosing activation records.
@@ -302,31 +302,7 @@ tree::Exp *AccessExp(Access *acc, tree::Exp *fp) {
   }
 }
 
-tree::Exp *ExternalCall(std::string s, tree::ExpList *args) {
-  return new tree::CallExp(new tree::NameExp(temp::LabelFactory::NamedLabel(s)), args);
-}
-
-tree::Stm *ProcEntryExit1(Frame *frame, tree::Stm *stm) {
-
-  // Order matters:
-  //   1. establish the function's view of incoming arguments,
-  //   2. preserve callee-saved registers before user code runs,
-  //   3. execute the body,
-  //   4. restore callee-saved registers just before returning.
-  stm = new tree::SeqStm(frame->save_callee_saves, stm);
-  stm = new tree::SeqStm(frame->view_shift, stm);
-  stm = new tree::SeqStm(stm, frame->restore_callee_saves);
-
-  return stm;
-}
-
-assem::InstrList *ProcEntryExit2(assem::InstrList *body) {
-  assem::Instr *return_sink = new assem::OperInstr("", nullptr, reg_manager->ReturnSink(), nullptr);
-  body->Append(return_sink);
-  return body;
-}
-
-assem::Proc *ProcEntryExit3(Frame *frame, assem::InstrList *body) {
+assem::Proc *ProcEntryExit3X64(Frame *frame, assem::InstrList *body) {
   std::stringstream prologue_ss;
   std::stringstream epilogue_ss;
 

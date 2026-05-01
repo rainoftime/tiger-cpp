@@ -66,7 +66,7 @@
 #include <vector>
 
 #include "tiger/codegen/assem.h"
-#include "tiger/frame/x64frame.h"
+#include "tiger/frame/frame.h"
 #include "tiger/frame/temp.h"
 #include "tiger/liveness/flowgraph.h"
 #include "tiger/util/graph.h"

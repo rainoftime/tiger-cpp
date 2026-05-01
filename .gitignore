@@ -1,3 +1,4 @@
+*.bin
 tests
 tmp
 .codex
@@ -5,6 +6,7 @@ tmp
 .cache
 .clangd
 .vscode
+.qwen
 .cursorrules
 .cursorignore
 .cursor

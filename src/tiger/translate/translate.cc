@@ -4,7 +4,7 @@
 
 #include "tiger/env/env.h"
 #include "tiger/errormsg/errormsg.h"
-#include "tiger/frame/x64frame.h"
+#include "tiger/frame/target.h"
 #include "tiger/frame/temp.h"
 #include "tiger/frame/frame.h"
 
@@ -122,7 +122,7 @@ void ProcEntryExit(Level *level, Exp *body) {
 }
 
 void ProgTr::Translate() {
-  temp::Label *main_label = temp::LabelFactory::NamedLabel("tigermain");
+  temp::Label *main_label = frame::NamedCodeLabel("tigermain");
   frame::Frame *new_frame = frame::NewFrame(main_label, std::vector<bool>());
   Level *main_level = new Level(new_frame, outermost_level_.get());
   tr::ExpAndTy *tree_expty = absyn_tree_->Translate(venv_.get(), tenv_.get(), main_level, nullptr, errormsg_.get());
@@ -314,7 +314,7 @@ tr::ExpAndTy *CallExp::Translate(env::VEnvPtr venv, env::TEnvPtr tenv,
     func_exp = new tree::NameExp(func_ent->label_);
 
   } else {  // External call
-    func_exp = new tree::NameExp(func_);
+    func_exp = new tree::NameExp(frame::NamedCodeLabel(func_->Name()));
   }
 
   for (Exp *arg : args_->GetList()) {

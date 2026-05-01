@@ -39,13 +39,13 @@ void AssemGen::GenAssem(bool need_ra) {
 
   // Emit all procedure (function body) fragments into the .text section
   phase = frame::Frag::Proc;
-  fprintf(out_, ".text\n");
+  fprintf(out_, "%s\n", frame::TextSectionDirective().c_str());
   for (auto &&frag : frags->GetList())
     frag->OutputAssem(out_, phase, need_ra);
 
   // Emit all string literal fragments into the .rodata section
   phase = frame::Frag::String;
-  fprintf(out_, ".section .rodata\n");
+  fprintf(out_, "%s\n", frame::RodataSectionDirective().c_str());
   for (auto &&frag : frags->GetList())
     frag->OutputAssem(out_, phase, need_ra);
 }
@@ -118,15 +118,21 @@ void ProcFrag::OutputAssem(FILE *out, OutputPhase phase, bool need_ra) const {
   
   std::string proc_name = frame_->GetLabel();
 
-  fprintf(out, ".globl %s\n", proc_name.data());
-  fprintf(out, ".type %s, @function\n", proc_name.data());
+  bool export_proc = true;
+  if (frame::IsArm64AppleTarget() && !proc_name.empty() && proc_name[0] == 'L')
+    export_proc = false;
+  if (export_proc)
+    fprintf(out, ".globl %s\n", proc_name.data());
+  if (frame::EmitsElfFunctionMetadata())
+    fprintf(out, ".type %s, @function\n", proc_name.data());
   // prologue
   fprintf(out, "%s", proc->prolog_.data());
   // body
   proc->body_->Print(out, color);
   // epilog_
   fprintf(out, "%s", proc->epilog_.data());
-  fprintf(out, ".size %s, .-%s\n", proc_name.data(), proc_name.data());
+  if (frame::EmitsElfFunctionMetadata())
+    fprintf(out, ".size %s, .-%s\n", proc_name.data(), proc_name.data());
 }
 
 void StringFrag::OutputAssem(FILE *out, OutputPhase phase, bool need_ra) const {
@@ -134,6 +140,8 @@ void StringFrag::OutputAssem(FILE *out, OutputPhase phase, bool need_ra) const {
   if (phase != String)
     return;
 
+  if (frame::IsArm64AppleTarget())
+    fprintf(out, ".p2align 2\n");
   fprintf(out, "%s:\n", label_->Name().data());
   int length = static_cast<int>(str_.size());
   // It may contain zeros in the middle of string. To keep this work, we need

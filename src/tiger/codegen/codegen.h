@@ -55,7 +55,7 @@
 
 #include "tiger/canon/canon.h"
 #include "tiger/codegen/assem.h"
-#include "tiger/frame/x64frame.h"
+#include "tiger/frame/target.h"
 #include "tiger/translate/tree.h"
 
 // Forward Declarations

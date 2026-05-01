@@ -3,7 +3,7 @@
  * @brief Tiger compiler driver
  *
  * This is the top-level entry point for the Tiger compiler.  It drives
- * the complete compilation pipeline from source file to x86-64 assembly:
+ * the complete compilation pipeline from source file to target assembly:
  *
  *   1. Parse          – lex + parse the .tig source file into an AST
  *   2. Semantic analysis – type-check and scope-check the AST
@@ -13,26 +13,27 @@
  *                         registers, and write the .tig.s output file
  *
  * Global state:
- *   reg_manager – the x86-64 register manager (singleton)
+ *   reg_manager – the active target register manager (singleton)
  *   frags       – the global list of compiled fragments (ProcFrag/StringFrag)
  *
  * Usage:
- *   tiger-compiler <file.tig>
+ *   tiger-compiler [--target <target>] [--emit-binary] [-o output] <file.tig>
  *
  * Output:
- *   <file.tig>.s  – x86-64 assembly (System V AMD64 ABI)
+ *   <file.tig>.s  – target assembly
+ *   <file.tig>.bin – optional linked binary when --emit-binary is used
  */
 
 #include "tiger/absyn/absyn.h"
 #include "tiger/escape/escape.h"
-#include "tiger/frame/x64frame.h"
+#include "tiger/frame/target.h"
 #include "tiger/output/logger.h"
 #include "tiger/output/output.h"
 #include "tiger/parse/parser.h"
 #include "tiger/translate/translate.h"
 #include "tiger/semant/semant.h"
 
-/** @brief Global x86-64 register manager (initialised in main) */
+/** @brief Global target register manager (initialised in main) */
 frame::RegManager *reg_manager;
 /** @brief Global list of compiled fragments (ProcFrag and StringFrag) */
 frame::Frags *frags;
@@ -40,15 +41,52 @@ frame::Frags *frags;
 int main(int argc, char **argv) {
   std::string_view fname;
   std::unique_ptr<absyn::AbsynTree> absyn_tree;
-  reg_manager = new frame::X64RegManager();
   frags = new frame::Frags();
+  frame::TargetArch target = frame::DetectHostTarget();
+  bool emit_binary = false;
+  std::string output_path;
 
   if (argc < 2) {
-    fprintf(stderr, "usage: tiger-compiler file.tig\n");
+    fprintf(stderr,
+            "usage: tiger-compiler [--target <target>] [--emit-binary] "
+            "[-o output] file.tig\n");
     exit(1);
   }
 
-  fname = std::string_view(argv[1]);
+  for (int i = 1; i < argc; ++i) {
+    std::string_view arg(argv[i]);
+    if (arg == "--emit-binary") {
+      emit_binary = true;
+      continue;
+    }
+    if (arg == "--target") {
+      if (i + 1 >= argc ||
+          !frame::ParseTarget(std::string_view(argv[i + 1]), &target)) {
+        fprintf(stderr, "unknown target: %s\n",
+                i + 1 < argc ? argv[i + 1] : "<missing>");
+        return 1;
+      }
+      ++i;
+      continue;
+    }
+    if (arg == "-o") {
+      if (i + 1 >= argc) {
+        fprintf(stderr, "-o requires an output path\n");
+        return 1;
+      }
+      output_path = argv[++i];
+      continue;
+    }
+    fname = arg;
+  }
+
+  if (fname.empty()) {
+    fprintf(stderr, "missing Tiger source file\n");
+    return 1;
+  }
+
+  frame::SetCurrentTarget(target);
+  reg_manager = frame::NewRegManagerForTarget(target);
 
   {
     std::unique_ptr<err::ErrorMsg> errormsg;
@@ -93,6 +131,20 @@ int main(int argc, char **argv) {
     // Output assembly
     output::AssemGen assem_gen(fname);
     assem_gen.GenAssem(true);
+  }
+
+  if (emit_binary) {
+    std::string source = std::string(fname);
+    std::string binary = output_path.empty() ? source + ".bin" : output_path;
+    std::string command = "clang ";
+    if (target == frame::TargetArch::Arm64Apple)
+      command += "-arch arm64 ";
+    command += source + ".s src/tiger/runtime/runtime.c -o " + binary;
+    if (std::system(command.c_str()) != 0) {
+      fprintf(stderr, "failed to link binary with command: %s\n",
+              command.c_str());
+      return 1;
+    }
   }
 
   return 0;
